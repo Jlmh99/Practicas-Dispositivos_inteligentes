@@ -9,11 +9,43 @@ import '../utils/weather_utils.dart';
 import 'search_screen.dart';
 
 //Cambiamos StatelessWidget por ConsumerWidget
-class HomeScreen extends ConsumerWidget {
+class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends ConsumerState<HomeScreen> {
+  // Controlador para el campo de búsqueda de ciudad
+  final _searchController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    // Cargar ciudad por defecto al abrir, igual que pide el profesor
+    Future.microtask(
+      () => ref.read(weatherProvider.notifier).loadWeather('Queretaro'),
+    );
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  // Dispara la búsqueda con el texto del campo
+  void _searchCity() {
+    final city = _searchController.text.trim();
+    if (city.isNotEmpty) {
+      ref.read(weatherProvider.notifier).loadWeather(city);
+      FocusScope.of(context).unfocus();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final weather = ref.watch(weatherProvider);//Escuchamos el estado del clima usando ref.watch
 
     final List<Map<String, dynamic>> randomClimates = [
@@ -47,7 +79,9 @@ class HomeScreen extends ConsumerWidget {
                     temp: nextClimate['temp'],
                     condition: nextClimate['condition'],
                     unit: weather.unit,
-                    humidity: nextClimate['humidity'],
+                    humidity: nextClimate['humidity'], 
+                    description: '', 
+                    windSpeed: 0.0,
                   ),
                 );
               },
@@ -67,6 +101,8 @@ class HomeScreen extends ConsumerWidget {
 
   // DISEÑO VERTICAL
   Widget _buildPortraitLayout(BuildContext context, WidgetRef ref, Weather weather) {
+    final notifier = ref.read(weatherProvider.notifier);
+
     return Center(
       child: SingleChildScrollView(
         child: Padding(
@@ -74,41 +110,92 @@ class HomeScreen extends ConsumerWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Text(
-                formatTemperature(weather.temp, weather.unit),
-                style: const TextStyle(fontSize: 72, fontWeight: FontWeight.bold, color: Colors.blue),
+              // Barra de búsqueda de ciudad (texto libre vía API)
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _searchController,
+                      decoration: const InputDecoration(
+                        hintText: 'Buscar ciudad...',
+                        border: OutlineInputBorder(),
+                        prefixIcon: Icon(Icons.search),
+                      ),
+                      onSubmitted: (_) => _searchCity(),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  ElevatedButton(
+                    onPressed: _searchCity,
+                    child: const Text('Buscar'),
+                  ),
+                ],
               ),
-              const SizedBox(height: 16),
-              // Ciudad dinámica
-              Text(
-                weather.city,
-                style: const TextStyle(fontSize: 24),
-              ),
-              const SizedBox(height: 32),
-              // Ícono dinámico según la condición
-              Icon(
-                getWeatherIcon(weather.condition), 
-                size: 120, 
-                color: Colors.blue,
-              ),
-              const SizedBox(height: 16),
-              // Texto de condición 
-              Text(
-                weather.condition,
-                style: const TextStyle(fontSize: 18, color: Colors.grey),
-              ),
-              const SizedBox(height: 16),
-              Text('Humedad: ${weather.humidity}% | Viento: 12 km/h'),
-              const SizedBox(height: 32),
+              const SizedBox(height: 24),
 
-              ElevatedButton.icon(
-                onPressed: () => ref.read(weatherProvider.notifier).toggleTemperatureUnit(),
-                icon: const Icon(Icons.thermostat_rounded),
-                label: const Text('Cambiar Unidad (°C / °F)'),
-              ),
-              const SizedBox(height: 16),
-              _buildSearchButton(context),
-              
+              // Si está cargando, mostramos el spinner y omitimos el resto
+              if (notifier.isLoading)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 32.0),
+                  child: CircularProgressIndicator(),
+                )
+              // Si hubo un error, lo mostramos con botón de reintentar
+              else if (notifier.error != null)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 32.0),
+                  child: Column(
+                    children: [
+                      const Icon(Icons.cloud_off, size: 64, color: Colors.red),
+                      const SizedBox(height: 16),
+                      Text(notifier.error!, textAlign: TextAlign.center),
+                      const SizedBox(height: 24),
+                      ElevatedButton(
+                        onPressed: () => notifier.loadWeather('Queretaro'),
+                        child: const Text('Reintentar'),
+                      ),
+                    ],
+                  ),
+                )
+              else ...[
+                Text(
+                  formatTemperature(weather.temp, weather.unit),
+                  style: const TextStyle(fontSize: 72, fontWeight: FontWeight.bold, color: Colors.blue),
+                ),
+                const SizedBox(height: 16),
+                // Ciudad dinámica
+                Text(
+                  weather.city,
+                  style: const TextStyle(fontSize: 24),
+                ),
+                const SizedBox(height: 32),
+                // Ícono dinámico según la condición
+                Icon(
+                  getWeatherIcon(weather.condition), 
+                  size: 120, 
+                  color: Colors.blue,
+                ),
+                const SizedBox(height: 16),
+                // Texto de condición 
+                Text(
+                  weather.condition,
+                  style: const TextStyle(fontSize: 18, color: Colors.grey),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                      'Humedad: ${weather.humidity}% | '
+                      'Viento: ${weather.windSpeed.toStringAsFixed(1)} m/s',
+                    ),
+                const SizedBox(height: 32),
+
+                ElevatedButton.icon(
+                  onPressed: () => ref.read(weatherProvider.notifier).toggleTemperatureUnit(),
+                  icon: const Icon(Icons.thermostat_rounded),
+                  label: const Text('Cambiar Unidad (°C / °F)'),
+                ),
+                const SizedBox(height: 16),
+                _buildSearchButton(context),
+              ],
+
               // PANEL DE INTEGRACIÓN BLE PARA VISTA VERTICAL
               const SizedBox(height: 24),
               _buildBleConnectionPanel(context, ref),
@@ -121,59 +208,111 @@ class HomeScreen extends ConsumerWidget {
 
   //  DISEÑO HORIZONTAL
   Widget _buildLandscapeLayout(BuildContext context, WidgetRef ref, Weather weather) {
+    final notifier = ref.read(weatherProvider.notifier);
+
     return Center(
       child: SingleChildScrollView(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 32.0, vertical: 16.0),
           child: Column(
             children: [
+              // Barra de búsqueda de ciudad (texto libre vía API)
               Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  // Lado izquierdo
                   Expanded(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          formatTemperature(weather.temp, weather.unit),
-                          style: const TextStyle(fontSize: 64, fontWeight: FontWeight.bold, color: Colors.blue),
-                        ),
-                        Text(
-                          weather.city,
-                          style: const TextStyle(fontSize: 22),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          weather.condition,
-                          style: const TextStyle(fontSize: 16, color: Colors.grey),
-                        ),
-                        const SizedBox(height: 8),
-                        Text('Humedad: ${weather.humidity}% | Viento: 12 km/h'),
-                      ],
+                    child: TextField(
+                      controller: _searchController,
+                      decoration: const InputDecoration(
+                        hintText: 'Buscar ciudad...',
+                        border: OutlineInputBorder(),
+                        prefixIcon: Icon(Icons.search),
+                      ),
+                      onSubmitted: (_) => _searchCity(),
                     ),
                   ),
-                  // Lado derecho
-                  Expanded(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        Icon(getWeatherIcon(weather.condition), size: 70, color: Colors.blue),
-                        const SizedBox(height: 16),
-                        // Botón para cambiar unidad en horizontal
-                        OutlinedButton(
-                          onPressed: () => ref.read(weatherProvider.notifier).toggleTemperatureUnit(),
-                          child: const Text('°C / °F'),
-                        ),
-                        const SizedBox(height: 16),
-                        _buildSearchButton(context),
-                      ],
-                    ),
+                  const SizedBox(width: 8),
+                  ElevatedButton(
+                    onPressed: _searchCity,
+                    child: const Text('Buscar'),
                   ),
                 ],
               ),
+              const SizedBox(height: 16),
+
+              // Si está cargando, mostramos el spinner y omitimos el resto
+              if (notifier.isLoading)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 32.0),
+                  child: CircularProgressIndicator(),
+                )
+              // Si hubo un error, lo mostramos con botón de reintentar
+              else if (notifier.error != null)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 32.0),
+                  child: Column(
+                    children: [
+                      const Icon(Icons.cloud_off, size: 64, color: Colors.red),
+                      const SizedBox(height: 16),
+                      Text(notifier.error!, textAlign: TextAlign.center),
+                      const SizedBox(height: 24),
+                      ElevatedButton(
+                        onPressed: () => notifier.loadWeather('Queretaro'),
+                        child: const Text('Reintentar'),
+                      ),
+                    ],
+                  ),
+                )
+              else
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    // Lado izquierdo
+                    Expanded(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            formatTemperature(weather.temp, weather.unit),
+                            style: const TextStyle(fontSize: 64, fontWeight: FontWeight.bold, color: Colors.blue),
+                          ),
+                          Text(
+                            weather.city,
+                            style: const TextStyle(fontSize: 22),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            weather.condition,
+                            style: const TextStyle(fontSize: 16, color: Colors.grey),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                                'Humedad: ${weather.humidity}% | '
+                                'Viento: ${weather.windSpeed.toStringAsFixed(1)} m/s',
+                              ),
+                        ],
+                      ),
+                    ),
+                    // Lado derecho
+                    Expanded(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Icon(getWeatherIcon(weather.condition), size: 70, color: Colors.blue),
+                          const SizedBox(height: 16),
+                          // Botón para cambiar unidad en horizontal
+                          OutlinedButton(
+                            onPressed: () => ref.read(weatherProvider.notifier).toggleTemperatureUnit(),
+                            child: const Text('°C / °F'),
+                          ),
+                          const SizedBox(height: 16),
+                          _buildSearchButton(context),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               // PANEL DE INTEGRACIÓN BLE PARA VISTA HORIZONTAL
               const SizedBox(height: 24),
               _buildBleConnectionPanel(context, ref),

@@ -1,10 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'screens/home_screen.dart';
 
-void main() {
-  // Envolvemos la app con ProviderScope para activar Riverpod
+Future<void> main() async {
+  // Necesario antes de usar código asíncrono
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // Cargar variables de entorno
+  await dotenv.load(fileName: '.env');
+
   runApp(
     const ProviderScope(
       child: MyApp(),
@@ -21,7 +27,7 @@ class MyApp extends StatelessWidget {
       title: 'Climate App',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        primarySwatch: Colors.blue, 
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
         useMaterial3: true,
       ),
       home: const HomeScreen(),

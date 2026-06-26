@@ -1,15 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'detail_screen.dart'; // Mantenemos tu import
+import '../providers/weather_provider.dart';
+import 'detail_screen.dart';
 
-class SearchScreen extends StatefulWidget {
+class SearchScreen extends ConsumerStatefulWidget {
   const SearchScreen({Key? key}) : super(key: key);
 
   @override
-  State<SearchScreen> createState() => _SearchScreenState();
+  ConsumerState<SearchScreen> createState() => _SearchScreenState();
 }
 
-class _SearchScreenState extends State<SearchScreen> {
+class _SearchScreenState extends ConsumerState<SearchScreen> {
   
   List<String> cities = ['Santiago', 'Querétaro', 'México', 'Guadalajara', 'Monterrey'];
   List<String> filteredCities = [];
@@ -58,15 +60,29 @@ class _SearchScreenState extends State<SearchScreen> {
                       return ListTile(
                         title: Text(city),
                         subtitle: const Text('24°C'), 
-                        onTap: () {
-                          
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => DetailScreen(city: city),
-                            ),
-                          );
-                        },
+                        onTap: () async {
+                              try {
+                                await ref.read(weatherProvider.notifier).loadWeather(city);
+
+                                if (!mounted) return;
+
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => DetailScreen(city: city),
+                                  ),
+                                );
+                              } catch (e) {
+                                if (!mounted) return;
+
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(e.toString()),
+                                  ),
+                                );
+                              }
+                            },
+
                       );
                     },
                   ),

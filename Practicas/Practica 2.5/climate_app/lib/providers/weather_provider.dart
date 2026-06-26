@@ -5,16 +5,21 @@ import 'package:flutter_riverpod/legacy.dart';
 import '../models/weather.dart';
 // 1. Importamos el servicio de BLE que creamos antes
 import '../services/ble_service.dart';
+import '../services/weather_service.dart';
 
 class WeatherNotifier extends StateNotifier<Weather> {
   // Instanciamos el servicio BLE directamente aquí
   final BLEService _bleService = BLEService();
+  final WeatherService _weatherService = WeatherService();
 
   // Variables de control de estado para el flujo BLE (Pasos 11, 12 y 13)
   List<String> discoveredDevices = [];
   bool isScanning = false;
   bool isLoadingConnection = false;
   String bleConnectionStatus = "Sin conexion BLE"; // Inicialización exigida por el paso 13
+  //variable para manejar errores de la API
+  bool isLoading = false;
+  String? error;
 
   WeatherNotifier()
       : super(
@@ -22,17 +27,33 @@ class WeatherNotifier extends StateNotifier<Weather> {
             city: 'Querétaro',
             temp: 24.0,
             condition: 'Despejado',
+            description: '',
             unit: 'C',
             humidity: 65,
+            windSpeed: 0.0,
           ),
         );
+
+  // Método auxiliar para evitar repetir la reconstrucción de Weather
+  // cada vez que solo queremos notificar a la UI sin cambiar datos.
+  void refresh() {
+    state = Weather(
+      city: state.city,
+      temp: state.temp,
+      condition: state.condition,
+      description: state.description,
+      unit: state.unit,
+      humidity: state.humidity,
+      windSpeed: state.windSpeed,
+    );
+  }
 
   // --- PASO 10: Método que llama al BLEService para leer datos del wearable ---
   Future<void> connectAndReadWearable(String deviceId) async {
     isLoadingConnection = true;
     bleConnectionStatus = "Vinculando...";
     // Notificamos a la UI actualizando con el mismo estado para que redibuje los loaders
-    state = Weather(city: state.city, temp: state.temp, condition: state.condition, unit: state.unit, humidity: state.humidity);
+    refresh();
 
     try {
       // 1. Llamamos al método connect (Paso 7)
@@ -67,7 +88,7 @@ class WeatherNotifier extends StateNotifier<Weather> {
     } finally {
       isLoadingConnection = false;
       // Forzamos actualización para refrescar la UI
-      state = Weather(city: state.city, temp: state.temp, condition: state.condition, unit: state.unit, humidity: state.humidity);
+      refresh();
     }
   }
 
@@ -75,7 +96,7 @@ class WeatherNotifier extends StateNotifier<Weather> {
   Future<void> scanForBluetoothDevices() async {
     isScanning = true;
     discoveredDevices.clear();
-    state = Weather(city: state.city, temp: state.temp, condition: state.condition, unit: state.unit, humidity: state.humidity);
+    refresh();
 
     // Escuchamos el stream simulado del Paso 6
     _bleService.scanForDevices().listen((scanResults) {
@@ -90,14 +111,14 @@ class WeatherNotifier extends StateNotifier<Weather> {
         }
       }
       isScanning = false;
-      state = Weather(city: state.city, temp: state.temp, condition: state.condition, unit: state.unit, humidity: state.humidity);
+      refresh();
     });
   }
 
   // Método auxiliar para el Paso 13 (Simular Desconexión)
   void disconnectWearable() {
     bleConnectionStatus = "Sin conexion BLE";
-    state = Weather(city: state.city, temp: state.temp, condition: state.condition, unit: state.unit, humidity: state.humidity);
+    refresh();
   }
 
   // --- Tus métodos existentes se quedan igual ---
@@ -106,17 +127,26 @@ class WeatherNotifier extends StateNotifier<Weather> {
   }
 
   Future<void> loadWeather(String city) async {
+    isLoading = true;
+    error = null;
+
+    refresh();
+
     try {
-      await Future.delayed(const Duration(seconds: 1));
-      state = Weather(
-        city: city,
-        temp: 24.0,
-        condition: 'cloudy',
-        unit: state.unit, 
-        humidity: 65,
+      final weather = await _weatherService.getWeather(city);
+      // conservar la unidad elegida por el usuario
+      state = Weather(city: weather.city,temp: weather.temp,
+        condition: weather.condition,description: weather.description,
+        unit: state.unit,humidity: weather.humidity,windSpeed: weather.windSpeed,
       );
+
     } catch (e) {
-      print('Error loading weather: $e');
+      error = e.toString().replaceFirst("Exception: ", "");
+    } finally {
+
+      isLoading = false;
+
+      refresh();
     }
   }
 
@@ -135,8 +165,10 @@ class WeatherNotifier extends StateNotifier<Weather> {
       city: state.city,
       temp: nextTemp,
       condition: state.condition,
+      description: state.description,
       unit: nextUnit,
       humidity: state.humidity,
+      windSpeed: state.windSpeed,
     );
   }
 
@@ -145,8 +177,10 @@ class WeatherNotifier extends StateNotifier<Weather> {
       city: state.city,
       temp: newTemp.toDouble(), 
       condition: state.condition,
+      description: state.description,
       unit: state.unit,
       humidity: state.humidity,
+      windSpeed: state.windSpeed,
     );
   }
 }
