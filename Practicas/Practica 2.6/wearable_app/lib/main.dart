@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 import 'ble_server.dart';
 import 'sensor_simulator.dart';
@@ -54,14 +55,33 @@ class _WearableAppState extends State<WearableApp> {
   }
 
   Future<void> _toggleActivity() async {
+    if (!_active) {
+    final granted = await _requestPermissions();
+    if (!granted) {
+      print('[WearableApp] Permisos de Bluetooth no concedidos');
+      return;
+    }
+  }
+
+
     setState(() => _active = !_active);
 
     if (_active) {
       _sim.start();
       await _server.startAdvertising();
     } else {
-      _server.stop();
+      await _server.stop();
     }
+  }
+
+  Future<bool> _requestPermissions() async {
+    final statuses = await [
+      Permission.bluetoothAdvertise,
+      Permission.bluetoothConnect,
+      Permission.bluetoothScan,
+    ].request();
+
+    return statuses.values.every((status) => status.isGranted);
   }
 
   @override
