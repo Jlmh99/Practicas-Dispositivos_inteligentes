@@ -186,6 +186,9 @@ docs/evidencias/raw/
 *.mp4
 !smart_pwa/assets/media/*.mp4
 
+CLAUDE.md
+rubrica.md
+
 # ==================================================================
 # LO QUE SÍ DEBE COMMITEARSE (recordatorio)
 # ==================================================================

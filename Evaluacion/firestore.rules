@@ -1,0 +1,27 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // games: catálogo de juegos, solo lectura para usuarios autenticados.
+    // La escritura se hace desde el script de seed (Admin SDK), nunca desde el cliente.
+    match /games/{gameId} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+
+    // users/{uid}: perfil propio del usuario, y su subcolección de sesiones.
+    match /users/{uid} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+
+      match /sessions/{sessionId} {
+        allow read, write: if request.auth != null && request.auth.uid == uid;
+      }
+    }
+
+    // sessionState/{uid}: estado en vivo de la sesión, corazón del sync teléfono-TV.
+    match /sessionState/{uid} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
+  }
+}
