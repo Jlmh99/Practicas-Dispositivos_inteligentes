@@ -1,0 +1,199 @@
+####################################################################
+# Mind Games — Ecosistema DDI
+# Monorepo: wearable_app / telefono_app / smart_pwa / shared_ble
+#
+# CRÍTICO: este archivo debe existir ANTES del primer commit.
+# Verificación:  git ls-files | grep -E "\.env|\.jks|google-services|firebase_options|firebase-config\.js"
+# (no debe devolver nada)
+####################################################################
+
+# ==================================================================
+# SECRETOS Y CREDENCIALES  ⚠ REQUISITO CRÍTICO DE LA EVALUACIÓN
+# ==================================================================
+
+# Variables de entorno
+.env
+.env.*
+*.env
+!.env.example
+
+# Firebase — configuración generada (SÍ se commitean los .example)
+**/firebase_options.dart
+!**/firebase_options.example.dart
+**/google-services.json
+**/GoogleService-Info.plist
+smart_pwa/js/firebase-config.js
+!smart_pwa/js/firebase-config.example.js
+.firebase/
+.firebaserc
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+database-debug.log
+pubsub-debug.log
+firebase-export-*/
+
+# Service account de Firebase Admin (para el script de seed)
+# Debe vivir FUERA del repo, ej. ~/.secrets/mindgames-admin.json
+*serviceAccount*.json
+*service-account*.json
+*-firebase-adminsdk-*.json
+scripts/credentials/
+
+# Firma de APK
+*.jks
+*.keystore
+key.properties
+**/android/key.properties
+upload-keystore.jks
+
+# Claves genéricas
+*.pem
+*.p12
+*.p8
+*.cer
+*.der
+secrets/
+.secrets/
+
+# ==================================================================
+# FLUTTER / DART  (wearable_app, telefono_app, shared_ble)
+# ==================================================================
+
+.dart_tool/
+.packages
+.pub-cache/
+.pub/
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+.metadata
+pubspec.lock.bak
+**/doc/api/
+coverage/
+*.dart.js
+*.info.json
+*.js.deps
+*.js.map
+.flutter-versions
+
+# Generado por build_runner / json_serializable
+*.g.dart
+*.freezed.dart
+*.mocks.dart
+
+# ==================================================================
+# ANDROID
+# ==================================================================
+
+**/android/**/gradle-wrapper.jar
+**/android/.gradle/
+**/android/captures/
+**/android/gradlew
+**/android/gradlew.bat
+**/android/local.properties
+**/android/**/GeneratedPluginRegistrant.java
+**/android/app/debug/
+**/android/app/profile/
+**/android/app/release/
+*.apk
+*.aab
+*.ap_
+*.dex
+*.class
+local.properties
+.cxx/
+
+# ==================================================================
+# iOS / macOS  (no está en el alcance, pero por si acaso)
+# ==================================================================
+
+**/ios/Flutter/.last_build_id
+**/ios/Flutter/App.framework
+**/ios/Flutter/Flutter.framework
+**/ios/Flutter/Flutter.podspec
+**/ios/Flutter/Generated.xcconfig
+**/ios/Flutter/ephemeral/
+**/ios/Flutter/flutter_export_environment.sh
+**/ios/Pods/
+**/ios/.symlinks/
+**/ios/ServiceDefinitions.json
+**/ios/Runner/GeneratedPluginRegistrant.*
+**/Podfile.lock
+
+# ==================================================================
+# SMART PWA  (HTML / CSS / JS vanilla)
+# ==================================================================
+
+node_modules/
+npm-debug.log*
+yarn-error.log*
+package-lock.json.bak
+
+# Reportes de Lighthouse (nivel DE) — regenerables
+smart_pwa/lighthouse-report.*
+smart_pwa/.lighthouseci/
+
+# NOTA: smart_pwa/js/vendor/ SÍ se commitea.
+# Son los SDK de Firebase servidos localmente para que la CSP quede en 'self'.
+
+# ==================================================================
+# EDITORES E IDE
+# ==================================================================
+
+.vscode/*
+!.vscode/settings.json
+!.vscode/launch.json
+!.vscode/extensions.json
+.idea/
+*.iml
+*.iws
+*.ipr
+.history/
+*.swp
+*.swo
+*~
+
+# ==================================================================
+# SISTEMA OPERATIVO
+# ==================================================================
+
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+ehthumbs.db
+desktop.ini
+$RECYCLE.BIN/
+
+# ==================================================================
+# ARCHIVOS TEMPORALES Y DE TRABAJO
+# ==================================================================
+
+*.log
+*.tmp
+*.bak
+*.old
+temp/
+tmp/
+.cache/
+
+# Videos crudos de la demo (pesados). El video final va a Drive/YouTube,
+# no al repositorio.
+docs/evidencias/raw/
+*.mp4
+!smart_pwa/assets/media/*.mp4
+
+# ==================================================================
+# LO QUE SÍ DEBE COMMITEARSE (recordatorio)
+# ==================================================================
+# firestore.rules
+# firestore.indexes.json
+# smart_pwa/js/vendor/            (SDK de Firebase locales)
+# smart_pwa/assets/media/         (imágenes de los juegos + fallback)
+# **/firebase_options.example.dart
+# smart_pwa/js/firebase-config.example.js
+# .env.example
+# docs/                           (excepto evidencias/raw/)
