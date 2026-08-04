@@ -64,3 +64,46 @@ lentitud). `adb kill-server && adb start-server` no lo resuelve de forma
 confiable. Sin solución encontrada todavía desde la línea de comandos; si
 vuelve a pasar, probar con otra imagen de sistema Wear OS (round API 30/33 en
 vez de la 36) o instalar/correr directamente desde Android Studio.
+
+### `telefono_app` escanea pero nunca encuentra al wearable
+
+Con los dos emuladores corriendo simultáneamente (teléfono `emulator-5554` +
+Wear OS `emulator-5556`), `telefono_app` completaba ciclos de
+`startScan`/`stopScan` con backoff sin error, pero jamás detectaba
+"MindGames-Watch". No era un problema del emulador ni del Bluetooth virtual
+(Netsim) — eran dos bugs reales en `wearable_app/lib/ble/gatt_peripheral.dart`,
+encontrados comparando logcat de ambos emuladores y el código nativo de
+`ble_peripheral` contra un ejemplo previo que sí funcionaba. Los dos ya están
+arreglados en el repo:
+
+1. **`BlePeripheral.isSupported()` lanzaba excepción y bloqueaba todo antes de
+   intentar anunciar.** Internamente llama a
+   `bluetoothAdapter.isMultipleAdvertisementSupported` (Android), que en este
+   emulador lanza `UnsupportedOperationException` aunque `startAdvertising()`
+   sí funcione ahí. El código defensivo original la atrapaba correctamente
+   (no crasheaba) pero nunca llegaba a anunciar — cero logs nativos de BLE,
+   ni siquiera un intento. Fix: se quitó esa guarda previa; ahora se intenta
+   anunciar directamente y solo se reporta error si `initialize`/
+   `addService`/`startAdvertising` fallan de verdad.
+
+2. **`"Data too large"` al anunciar.** Con la guarda anterior fuera, el
+   advertising fallaba con ese error. Causa confirmada en el código nativo de
+   `ble_peripheral` (`BlePeripheralPlugin.kt`): el `localName` y el
+   `SERVICE_UUID` (128 bits) se empaquetan juntos en el mismo paquete de
+   advertising, y juntos exceden el límite físico de 31 bytes de un paquete
+   BLE clásico — esto pasaría igual en hardware real, no es cosa del
+   emulador. Como `telefono_app` descubre por `SERVICE_UUID` y nunca lee el
+   nombre anunciado, se quitó `localName: 'MindGames-Watch'` del
+   `startAdvertising()` para que el UUID quepa solo.
+
+**Confirmado en vivo tras el fix:** wearable muestra "● Conectado"; logcat del
+teléfono muestra `connect → SUCCESS`, `discoverServices → 8 services
+GATT_SUCCESS`, y las 5 características de datos con `setNotifyValue`/
+`onDescriptorWrite → GATT_SUCCESS` cada una.
+
+Nota aparte: al conectar puede aparecer un diálogo del sistema Android
+*"Pairing request... Tap to pair with MindGames-Watch"* sobre la app del
+teléfono. No bloquea nada — la conexión GATT y las suscripciones NOTIFY ya
+tuvieron éxito antes de que aparezca. Es el flujo estándar de bonding de
+Android; solo hay que tocarlo (Pair & connect o Cancel) para quitarlo de
+encima.

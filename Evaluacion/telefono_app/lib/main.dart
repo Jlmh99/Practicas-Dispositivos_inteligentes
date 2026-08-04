@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:permission_handler/permission_handler.dart';
 
-const Color kAzulPrimario = Color(0xFF3A3AFF);
+import 'ui/colores.dart';
+import 'ui/monitor_screen.dart';
 
 void main() {
   runApp(const MyApp());
@@ -12,12 +14,17 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Mind Games',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: kAzulPrimario),
+    // ProviderScope vive aquí (no en runApp) para que MyApp sea
+    // autocontenido y testeable con pumpWidget(const MyApp()) sin depender
+    // de cómo se arrancó la app real.
+    return ProviderScope(
+      child: MaterialApp(
+        title: 'Mind Games',
+        theme: ThemeData(
+          colorScheme: ColorScheme.fromSeed(seedColor: kAzulPrimario),
+        ),
+        home: const PermissionGate(),
       ),
-      home: const PermissionGate(),
     );
   }
 }
@@ -84,7 +91,7 @@ class _PermissionGateState extends State<PermissionGate> {
           body: Center(child: CircularProgressIndicator(color: kAzulPrimario)),
         );
       case _EstadoPermiso.concedido:
-        return const MyHomePage(title: 'Mind Games');
+        return const MonitorScreen();
       case _EstadoPermiso.denegado:
         return _PermisosDenegadosScreen(
           onReintentar: _solicitarPermisos,
@@ -135,52 +142,6 @@ class _PermisosDenegadosScreen extends StatelessWidget {
             ),
           ),
         ),
-      ),
-    );
-  }
-}
-
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
-
-  final String title;
-
-  @override
-  State<MyHomePage> createState() => _MyHomePageState();
-}
-
-class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
-
-  void _incrementCounter() {
-    setState(() {
-      _counter++;
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        title: Text(widget.title),
-      ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Text('You have pushed the button this many times:'),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headlineMedium,
-            ),
-          ],
-        ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
       ),
     );
   }

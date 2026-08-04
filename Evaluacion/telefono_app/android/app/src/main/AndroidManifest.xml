@@ -13,6 +13,10 @@
         android:name="android.permission.BLUETOOTH_ADMIN"
         android:maxSdkVersion="30" />
 
+    <!-- Android 13+: sin esto, la notificación local de "tiempo de juego
+         prolongado" no se muestra (no crashea, simplemente no aparece). -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
     <!-- required="false": evita el crash instantáneo en emuladores de
          teléfono sin adaptador BLE real (mismo ajuste que en wearable_app). -->
     <uses-feature

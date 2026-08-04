@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:ble_peripheral/ble_peripheral.dart';
-import 'package:flutter/foundation.dart';
 import 'package:shared_ble/shared_ble.dart';
 
 /// Periférico GATT con guardas de seguridad para evitar crashes en emuladores
@@ -17,32 +16,18 @@ class GattPeripheral {
 
   bool _advertising = false;
 
-  /// Si es falso, no toca ningún método de `ble_peripheral` para evitar el crash nativo.
-  bool _hardwareDisponible = true;
-
   bool get advertising => _advertising;
   Stream<bool> get centralConectado => _centralConectadoController.stream;
   Stream<String> get errores => _erroresController.stream;
 
   Future<void> iniciar() async {
-    // 1. Verificar soporte nativo con un método seguro de solo lectura
-    try {
-      final isSupported = await BlePeripheral.isSupported();
-      if (!isSupported) {
-        _hardwareDisponible = false;
-        _erroresController.add('Hardware BLE Periférico no soportado (Modo Emulador)');
-        return;
-      }
-    } catch (e) {
-      // Si la llamada falla en nativo, bloqueamos el uso del plugin por completo
-      _hardwareDisponible = false;
-      _erroresController.add('Incapaz de verificar BLE nativo: $e');
-      return;
-    }
-
-    if (!_hardwareDisponible) return;
-
-    // 2. Si el hardware existe (Dispositivo Físico Wear OS), procede de forma normal
+    // Nota: `BlePeripheral.isSupported()` (que llama a
+    // `bluetoothAdapter.isMultipleAdvertisementSupported` en Android) LANZA
+    // excepción y reporta "no soportado" en varios emuladores aunque
+    // `startAdvertising` sí funcione ahí (confirmado empíricamente). Por eso
+    // no se usa como guarda previa: se intenta anunciar directamente y solo
+    // se reporta error si `initialize`/`addService`/`startAdvertising`
+    // fallan de verdad.
     try {
       await BlePeripheral.initialize();
 
@@ -60,10 +45,16 @@ class GattPeripheral {
       BlePeripheral.setWriteRequestCallback(_onWriteRequest);
 
       await BlePeripheral.addService(_construirServicio());
-      await BlePeripheral.startAdvertising(
-        services: [kServiceUuid],
-        localName: 'MindGames-Watch',
-      );
+      // Sin `localName`: el paquete de advertising BLE clásico tiene un
+      // límite físico de 31 bytes. Nuestro SERVICE_UUID de 128 bits (16
+      // bytes) ya ocupa la mayor parte; sumarle "MindGames-Watch" hace que
+      // `ble_peripheral` intente meter ambos en el mismo paquete (ver su
+      // BlePeripheralPlugin.kt: `setIncludeDeviceName` + `addServiceUuid` en
+      // el mismo AdvertiseData.Builder) y falla con
+      // ADVERTISE_FAILED_DATA_TOO_LARGE ("Data too large"), confirmado en
+      // vivo. `telefono_app` filtra y descubre por SERVICE_UUID, nunca lee
+      // el nombre anunciado, así que se prioriza que el UUID quepa.
+      await BlePeripheral.startAdvertising(services: [kServiceUuid]);
       _advertising = true;
     } catch (e) {
       _advertising = false;
@@ -72,11 +63,6 @@ class GattPeripheral {
   }
 
   Future<void> detener() async {
-    if (!_hardwareDisponible) {
-      _advertising = false;
-      return;
-    }
-
     try {
       await BlePeripheral.stopAdvertising();
     } catch (e) {
@@ -87,7 +73,7 @@ class GattPeripheral {
   }
 
   Future<void> notificar(SensorPayload payload) async {
-    if (!_advertising || !_hardwareDisponible) return;
+    if (!_advertising) return;
 
     try {
       await BlePeripheral.updateCharacteristic(
