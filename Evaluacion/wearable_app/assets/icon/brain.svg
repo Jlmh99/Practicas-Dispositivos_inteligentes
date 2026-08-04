@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <title>Mind Games Watch — ícono (cerebro estilizado)</title>
+  <rect x="0" y="0" width="200" height="200" fill="#F4F6F9" />
+
+  <g fill="#3A3AFF">
+    <!-- Masa principal -->
+    <ellipse cx="100" cy="100" rx="60" ry="40" />
+
+    <!-- Lóbulos superiores (silueta ondulada) -->
+    <ellipse cx="52" cy="50.6" rx="17" ry="12.75" />
+    <ellipse cx="74" cy="51.0" rx="20" ry="15" />
+    <ellipse cx="96" cy="50.6" rx="17" ry="12.75" />
+    <ellipse cx="118" cy="51.0" rx="20" ry="15" />
+    <ellipse cx="140" cy="50.6" rx="17" ry="12.75" />
+
+    <!-- Cerebelo / tallo cerebral -->
+    <ellipse cx="134" cy="140" rx="18" ry="20" />
+    <rect x="124" y="144" width="16" height="28" rx="4" />
+  </g>
+
+  <g fill="none" stroke="#2626B8" stroke-linecap="round">
+    <!-- Surco central -->
+    <polyline points="100,64 98,90 102,116 100,136" stroke-width="3.6" />
+
+    <!-- Pliegues (gyri), un par por hemisferio -->
+    <path d="M 52,72 Q 70,88 88,72" stroke-width="2.8" />
+    <path d="M 56,96 Q 74,112 92,96" stroke-width="2.8" />
+    <path d="M 112,72 Q 130,88 148,72" stroke-width="2.8" />
+    <path d="M 112,94 Q 128,108 144,94" stroke-width="2.8" />
+  </g>
+</svg>

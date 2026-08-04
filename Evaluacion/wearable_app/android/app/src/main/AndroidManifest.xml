@@ -1,8 +1,32 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Es un periférico BLE: anuncia, acepta conexiones y (para pedir
+         permisos con permission_handler antes de anunciar) también escanea. -->
+    <uses-permission android:name="android.permission.BLUETOOTH_ADVERTISE" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <uses-permission
+        android:name="android.permission.BLUETOOTH_SCAN"
+        android:usesPermissionFlags="neverForLocation" />
+    <!-- Compatibilidad con API < 31 -->
+    <uses-permission
+        android:name="android.permission.BLUETOOTH"
+        android:maxSdkVersion="30" />
+    <uses-permission
+        android:name="android.permission.BLUETOOTH_ADMIN"
+        android:maxSdkVersion="30" />
+
+    <uses-feature android:name="android.hardware.type.watch" />
+    <uses-feature
+        android:name="android.hardware.bluetooth_le"
+        android:required="false" />
+
     <application
         android:label="wearable_app"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round">
+        <meta-data
+            android:name="com.google.android.wearable.standalone"
+            android:value="true" />
         <activity
             android:name=".MainActivity"
             android:exported="true"

@@ -40,6 +40,10 @@ dependencies:
 
   permission_handler: ^11.3.1
 
+  # Periférico BLE (GATT server). Deprecado por su autor a favor de
+  # universal_ble, pero sigue funcionando y es lo pedido para este proyecto.
+  ble_peripheral: ^2.4.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

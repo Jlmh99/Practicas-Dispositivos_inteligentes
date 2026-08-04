@@ -1,4 +1,24 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Es el CENTRAL BLE (escanea y se conecta al wearable). No anuncia,
+         por eso no pide BLUETOOTH_ADVERTISE. -->
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <uses-permission
+        android:name="android.permission.BLUETOOTH_SCAN"
+        android:usesPermissionFlags="neverForLocation" />
+    <!-- Compatibilidad con API < 31 -->
+    <uses-permission
+        android:name="android.permission.BLUETOOTH"
+        android:maxSdkVersion="30" />
+    <uses-permission
+        android:name="android.permission.BLUETOOTH_ADMIN"
+        android:maxSdkVersion="30" />
+
+    <!-- required="false": evita el crash instantáneo en emuladores de
+         teléfono sin adaptador BLE real (mismo ajuste que en wearable_app). -->
+    <uses-feature
+        android:name="android.hardware.bluetooth_le"
+        android:required="false" />
+
     <application
         android:label="telefono_app"
         android:name="${applicationName}"

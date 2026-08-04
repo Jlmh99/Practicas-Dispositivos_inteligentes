@@ -1,121 +1,169 @@
 import 'package:flutter/material.dart';
+import 'package:permission_handler/permission_handler.dart';
+
+import 'ui/watch_home_screen.dart';
+
+const Color kFondoOscuro = Color(0xFF0F0F1A);
+const Color kAzulPrimario = Color(0xFF3A3AFF);
 
 void main() {
-  runApp(const MyApp());
+  runApp(const MindGamesWatchApp());
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class MindGamesWatchApp extends StatelessWidget {
+  const MindGamesWatchApp({super.key});
 
-  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo',
-      theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // TRY THIS: Try running your application with "flutter run". You'll see
-        // the application has a purple toolbar. Then, without quitting the app,
-        // try changing the seedColor in the colorScheme below to Colors.green
-        // and then invoke "hot reload" (save your changes or press the "hot
-        // reload" button in a Flutter-supported IDE, or press "r" if you used
-        // the command line to start the app).
-        //
-        // Notice that the counter didn't reset back to zero; the application
-        // state is not lost during the reload. To reset the state, use hot
-        // restart instead.
-        //
-        // This works for code too, not just values: Most code changes can be
-        // tested with just a hot reload.
-        colorScheme: .fromSeed(seedColor: Colors.deepPurple),
+      debugShowCheckedModeBanner: false,
+      title: 'Mind Games Watch',
+      theme: ThemeData.dark(useMaterial3: true).copyWith(
+        scaffoldBackgroundColor: kFondoOscuro,
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: kAzulPrimario,
+          brightness: Brightness.dark,
+        ),
       ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
+      home: const PermissionGate(),
     );
   }
 }
 
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
-
-  // This widget is the home page of your application. It is stateful, meaning
-  // that it has a State object (defined below) that contains fields that affect
-  // how it looks.
-
-  // This class is the configuration for the state. It holds the values (in this
-  // case the title) provided by the parent (in this case the App widget) and
-  // used by the build method of the State. Fields in a Widget subclass are
-  // always marked "final".
-
-  final String title;
+/// Solicita los permisos BLE necesarios para actuar como periférico antes de
+/// mostrar la pantalla principal. Si el usuario los niega o el entorno no soporta
+/// Bluetooth, maneja el estado sin cerrar la app.
+class PermissionGate extends StatefulWidget {
+  const PermissionGate({super.key});
 
   @override
-  State<MyHomePage> createState() => _MyHomePageState();
+  State<PermissionGate> createState() => _PermissionGateState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
+enum _EstadoPermiso { verificando, concedido, denegado }
 
-  void _incrementCounter() {
+class _PermissionGateState extends State<PermissionGate> {
+  _EstadoPermiso _estado = _EstadoPermiso.verificando;
+
+  static const _permisosBle = [
+    Permission.bluetoothAdvertise,
+    Permission.bluetoothConnect,
+    Permission.bluetoothScan,
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _solicitarPermisos();
+  }
+
+  Future<void> _solicitarPermisos() async {
+    if (!mounted) return;
+    setState(() => _estado = _EstadoPermiso.verificando);
+
+    try {
+      final resultados = await _permisosBle.request();
+
+      // Comprobar si los permisos esenciales fueron concedidos
+      final concedidos = resultados.values.every(
+        (status) => status.isGranted || status.isLimited,
+      );
+
+      if (!mounted) return;
+      setState(() {
+        _estado = concedidos ? _EstadoPermiso.concedido : _EstadoPermiso.denegado;
+      });
+    } catch (e) {
+      debugPrint('Error al solicitar permisos BLE (posible emulador sin Bluetooth): $e');
+      if (!mounted) return;
+
+      // Evita el crash asignando el estado denegado
+      setState(() {
+        _estado = _EstadoPermiso.denegado;
+      });
+    }
+  }
+
+  void _omitirParaPruebas() {
     setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
-      _counter++;
+      _estado = _EstadoPermiso.concedido;
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
+    switch (_estado) {
+      case _EstadoPermiso.verificando:
+        return const Scaffold(
+          body: Center(child: CircularProgressIndicator(color: kAzulPrimario)),
+        );
+      case _EstadoPermiso.concedido:
+        return const WatchHomeScreen();
+      case _EstadoPermiso.denegado:
+        return _PermisosDenegadosScreen(
+          onReintentar: _solicitarPermisos,
+          onOmitir: _omitirParaPruebas,
+        );
+    }
+  }
+}
+
+class _PermisosDenegadosScreen extends StatelessWidget {
+  const _PermisosDenegadosScreen({
+    required this.onReintentar,
+    required this.onOmitir,
+  });
+
+  final VoidCallback onReintentar;
+  final VoidCallback onOmitir;
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        // TRY THIS: Try changing the color here to a specific color (to
-        // Colors.amber, perhaps?) and trigger a hot reload to see the AppBar
-        // change color while the other colors stay the same.
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
-        title: Text(widget.title),
-      ),
-      body: Center(
-        // Center is a layout widget. It takes a single child and positions it
-        // in the middle of the parent.
-        child: Column(
-          // Column is also a layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
-          //
-          // TRY THIS: Invoke "debug painting" (choose the "Toggle Debug Paint"
-          // action in the IDE, or press "p" in the console), to see the
-          // wireframe for each widget.
-          mainAxisAlignment: .center,
-          children: [
-            const Text('You have pushed the button this many times:'),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headlineMedium,
+      body: SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    Icons.bluetooth_disabled,
+                    color: Colors.white70,
+                    size: 28,
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Se necesitan permisos de Bluetooth para transmitir datos de sesión.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.white, fontSize: 12),
+                  ),
+                  const SizedBox(height: 12),
+                  ElevatedButton(
+                    onPressed: onReintentar,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: kAzulPrimario,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 8,
+                      ),
+                    ),
+                    child: const Text('Reintentar', style: TextStyle(fontSize: 12)),
+                  ),
+                  const SizedBox(height: 4),
+                  TextButton(
+                    onPressed: onOmitir,
+                    child: const Text(
+                      'Omitir (Modo Emulador)',
+                      style: TextStyle(color: Colors.white54, fontSize: 10),
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ],
+          ),
         ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
       ),
     );
   }

@@ -1,4 +1,4 @@
-package com.example.wearable_app
+package mx.uteq.mindgames.telefono_app
 
 import io.flutter.embedding.android.FlutterActivity
 

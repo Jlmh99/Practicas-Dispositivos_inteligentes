@@ -13,7 +13,17 @@ pluginManagement {
     repositories {
         google()
         mavenCentral()
+        maven { url = uri("https://storage.googleapis.com/download.flutter.io") }
         gradlePluginPortal()
+    }
+}
+dependencyResolutionManagement {
+    // Cambiado de FAIL_ON_PROJECT_REPOS a PREFER_SETTINGS
+    repositoriesMode.set(RepositoriesMode.PREFER_SETTINGS)
+    repositories {
+        google()
+        mavenCentral()
+        maven { url = uri("https://storage.googleapis.com/download.flutter.io") }
     }
 }
 
