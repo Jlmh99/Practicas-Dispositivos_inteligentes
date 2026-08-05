@@ -17,6 +17,24 @@ Juan Luis Mendoza Hernandez · 2023371106
 
 ## Generar el APK
 
+No se usa un keystore propio: `telefono_app/android/app/build.gradle.kts` ya
+firma el `buildType release` con la clave de debug de Flutter
+(`signingConfig = signingConfigs.getByName("debug")`), suficiente para este
+entregable.
+
+```bash
+cd telefono_app
+flutter build apk --release
+```
+
+APK resultante:
+
+```
+telefono_app/build/app/outputs/flutter-apk/app-release.apk
+```
+
+(~50 MB. Verificado: build exitoso con Gradle `assembleRelease` en ~172 s.)
+
 ## Troubleshooting
 
 ### Error SSL al compilar Android (`SunCertPathBuilderException` / `certificate_unknown`)
