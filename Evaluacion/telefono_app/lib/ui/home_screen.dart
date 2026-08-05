@@ -27,6 +27,20 @@ class HomeScreen extends ConsumerWidget {
     // NotifierProvider activo mientras algo lo escuche).
     ref.watch(sessionSyncProvider);
 
+    // Guarda el resumen de la sesión en cuanto `activityStatus` pasa a
+    // "PAUSA" — sin importar si el stop lo originó el botón del teléfono o
+    // el botón físico del wearable, porque ambos llegan igual por BLE NOTIFY
+    // y actualizan `activityProvider`. Antes esto solo pasaba si se detenía
+    // desde el botón del teléfono, y se perdía al detener desde el reloj.
+    ref.listen<String>(activityProvider.select((s) => s.activityStatus), (anterior, actual) {
+      debugPrint('[HomeScreen] activityStatus: $anterior -> $actual');
+      final seDetuvoAhora = anterior != null && anterior != 'PAUSA' && actual == 'PAUSA';
+      if (seDetuvoAhora) {
+        debugPrint('[HomeScreen] Detectado stop, guardando sesión...');
+        unawaited(_guardarSesion(ref));
+      }
+    });
+
     final activityStatus = ref.watch(activityProvider.select((s) => s.activityStatus));
     final corriendo = activityStatus != 'PAUSA' && activityStatus != 'INACTIVO';
 
@@ -77,34 +91,51 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 
-  Future<void> _alternarControl(WidgetRef ref, bool corriendo) async {
-    final iniciar = !corriendo;
-    await ref.read(bleClientProvider).enviarControl(iniciar);
-    if (iniciar) return;
+  Future<void> _alternarControl(WidgetRef ref, bool corriendo) {
+    return ref.read(bleClientProvider).enviarControl(!corriendo);
+  }
 
+  /// Dispara con el `ref.listen` de arriba, sin importar qué dispositivo
+  /// originó el "detener".
+  Future<void> _guardarSesion(WidgetRef ref) async {
     final usuario = ref.read(authStateProvider).value;
-    if (usuario == null) return;
+    if (usuario == null) {
+      debugPrint('[HomeScreen] _guardarSesion: sin usuario autenticado, se cancela.');
+      return;
+    }
 
     final actividad = ref.read(activityProvider);
     final gameId = ref.read(juegoSeleccionadoProvider);
 
-    await ref.read(firestoreRepositoryProvider).guardarSesion(
-          usuario.uid,
-          SesionGuardada(
-            gameId: gameId,
-            sessionSeconds: actividad.sessionSeconds,
-            heartRatePromedio: _promedio(actividad.heartRateHistorial),
-            moves: actividad.moves,
-            focusPromedio: _promedio(actividad.focusLevelHistorial),
-            alertasDisparadas: actividad.alertasActivas.map((a) => a.tipo.name).toList(),
-            finalizadoEn: DateTime.now(),
-          ),
-        );
+    try {
+      await ref.read(firestoreRepositoryProvider).guardarSesion(
+            usuario.uid,
+            SesionGuardada(
+              gameId: gameId,
+              sessionSeconds: actividad.sessionSeconds,
+              heartRatePromedio: _promedio(actividad.heartRateHistorial),
+              moves: actividad.moves,
+              focusPromedio: _promedio(actividad.focusLevelHistorial),
+              alertasDisparadas: actividad.alertasActivas.map((a) => a.tipo.name).toList(),
+              finalizadoEn: DateTime.now(),
+            ),
+          );
+      debugPrint('[HomeScreen] Sesión guardada en users/${usuario.uid}/sessions');
+    } catch (e) {
+      debugPrint('[HomeScreen] Error al guardar la sesión: $e');
+    }
   }
 
   double _promedio(List<num> valores) {
     if (valores.isEmpty) return 0;
-    return valores.reduce((a, b) => a + b) / valores.length;
+    // fold<num> en vez de reduce(): reduce() exige un combinador con el tipo
+    // exacto del elemento (ej. `(int, int) => int` para List<int> en tiempo
+    // de ejecución), y `(a, b) => a + b` se infiere como `(num, num) => num`
+    // al tipar el parámetro como `List<num>` — lanza un TypeError al llamar
+    // con heartRateHistorial/focusLevelHistorial reales. fold sí acepta un
+    // tipo acumulador (`num`) distinto al del elemento (`int`/`double`).
+    final suma = valores.fold<num>(0, (acumulado, v) => acumulado + v);
+    return suma / valores.length;
   }
 }
 
