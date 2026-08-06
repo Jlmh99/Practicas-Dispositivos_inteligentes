@@ -10,6 +10,7 @@ import {
 import {
   getFirestore,
   collection,
+  doc,
   query,
   orderBy,
   onSnapshot,
@@ -25,6 +26,7 @@ export {
   signInWithEmailAndPassword,
   signOut,
   collection,
+  doc,
   query,
   orderBy,
   onSnapshot,

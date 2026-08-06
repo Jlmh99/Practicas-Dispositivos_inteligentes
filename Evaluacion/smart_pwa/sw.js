@@ -6,7 +6,7 @@
 //   la última respuesta que se guardó — así el offline muestra "los
 //   últimos datos" en vez de nada.
 
-const CACHE_VERSION = 'mind-games-tv-v5';
+const CACHE_VERSION = 'mind-games-tv-v6';
 
 const APP_SHELL = [
   './',
@@ -19,6 +19,8 @@ const APP_SHELL = [
   './js/firebase-init.js',
   './js/firebase-config.js',
   './js/firestore-service.js',
+  './js/sync.js',
+  './js/broadcast.js',
   './js/sw-register.js',
   './js/vendor/firebase-app.js',
   './js/vendor/firebase-auth.js',

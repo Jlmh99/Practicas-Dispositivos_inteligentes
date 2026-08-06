@@ -67,22 +67,51 @@
             <span id="clock" class="clock"></span>
             <span id="date" class="date"></span>
           </div>
-          <div class="header-right">Mind Games · Ecosistema DDI · 2023371106</div>
+          <div class="header-right">
+            <span id="sync-estado" class="sync-estado" hidden>Reconectando…</span>
+            <span id="sync-latencia" class="sync-latencia" hidden></span>
+            Mind Games · Ecosistema DDI · 2023371106
+          </div>
         </header>
+
+        <!-- Banner grande de alerta (umbral principal, sessionState.alertaActiva)
+             — evidencia visual del requisito de umbrales de CLAUDE.md. -->
+        <div id="alerta-sesion" class="alerta-sesion" hidden>
+          Tiempo de juego prolongado, toma un descanso
+        </div>
 
         <main class="main">
           <div id="games-grid" class="games-grid" role="list" aria-label="Juegos"></div>
 
-          <aside class="stats-panel">
-            <h2>Tus estadísticas</h2>
-            <dl>
-              <dt>Partidas totales</dt>
-              <dd id="stat-partidas">—</dd>
-              <dt>Tiempo total jugado</dt>
-              <dd id="stat-tiempo">—</dd>
-              <dt>Juego más jugado</dt>
-              <dd id="stat-favorito">—</dd>
-            </dl>
+          <aside class="side-panels">
+            <!-- Sesión en curso: se llena en vivo con sessionState/{uid} vía
+                 js/sync.js. Oculto hasta que llega la primera sesión activa. -->
+            <div id="panel-sesion-vivo" class="panel-sesion-vivo" hidden>
+              <h2>Sesión en curso</h2>
+              <p id="sesion-vivo-juego" class="sesion-vivo-juego">—</p>
+              <dl>
+                <dt>Tiempo</dt>
+                <dd id="sesion-vivo-tiempo">00:00</dd>
+                <dt>Ritmo cardiaco</dt>
+                <dd id="sesion-vivo-heartrate">—</dd>
+                <dt>Movimientos</dt>
+                <dd id="sesion-vivo-moves">—</dd>
+                <dt>Concentración</dt>
+                <dd id="sesion-vivo-focus">—</dd>
+              </dl>
+            </div>
+
+            <div class="stats-panel">
+              <h2>Tus estadísticas</h2>
+              <dl>
+                <dt>Partidas totales</dt>
+                <dd id="stat-partidas">—</dd>
+                <dt>Tiempo total jugado</dt>
+                <dd id="stat-tiempo">—</dd>
+                <dt>Juego más jugado</dt>
+                <dd id="stat-favorito">—</dd>
+              </dl>
+            </div>
           </aside>
         </main>
       </div>

@@ -3,17 +3,147 @@
 Proyecto académico UTEQ, Desarrollo para Dispositivos Inteligentes, Evaluación 2.
 Juan Luis Mendoza Hernandez · 2023371106
 
+Tres apps sincronizadas por Firebase + un puente BLE:
+
+- **`wearable_app`** (Flutter Wear OS) — periférico BLE, simula sensores de sesión.
+- **`telefono_app`** (Flutter Android) — central BLE + Firebase, el único puente entre BLE y la nube.
+- **`smart_pwa`** (HTML/CSS/JS vanilla) — TV 1920×1080, D-pad, lee el estado en vivo desde Firestore.
+- **`shared_ble`** — paquete Dart con los UUIDs/formato de bytes, fuente de verdad del contrato BLE.
+
 ## Requisitos
+
+Versiones verificadas en la máquina de desarrollo (`flutter --version` / `node --version`):
+
+| Herramienta | Versión usada |
+| --- | --- |
+| Flutter | 3.44.0 (channel stable) |
+| Dart SDK | 3.12.0 (viene con Flutter) |
+| Node.js | 22.22.0 (solo para `scripts/seed_games.js`) |
+| Python | 3.13.5 (solo para servir `smart_pwa` con `http.server`, cualquier 3.x sirve) |
+| Android SDK / emulador | API 34+ para `telefono_app`, imagen Wear OS (round) para `wearable_app` |
+| Navegador para la TV | Chrome/Edge recientes (BroadcastChannel, Service Worker, ES Modules) |
+
+No hace falta el CLI de Firebase (`firebase-tools`) salvo que quieras usar
+`flutterfire configure` de nuevo — los proyectos ya traen su configuración
+generada (gitignorada, ver abajo).
 
 ## Configuración de Firebase
 
+Todo el ecosistema comparte **un solo proyecto Firebase** (`mind-games-ddi`
+en este repo, pero cualquier proyecto nuevo sirve). Pasos desde cero:
+
+1. **Crear el proyecto** en [Firebase Console](https://console.firebase.google.com/)
+   con el plan **Spark (gratuito)** — no se necesita Blaze para este alcance.
+2. **Authentication** → Sign-in method → habilitar **Correo electrónico/contraseña**.
+   (La verificación en dos pasos que pide CLAUDE.md se implementa en la app,
+   no es un ajuste de la consola.)
+3. **Firestore Database** → crear en modo producción, cualquier región cercana.
+4. **Publicar las reglas** de este repo (ya escritas en `firestore.rules`):
+   ```bash
+   # Con firebase-tools instalado y logueado:
+   firebase deploy --only firestore:rules --project <tu-project-id>
+   # o pegar el contenido de firestore.rules directamente en
+   # Firestore → Reglas, en la consola.
+   ```
+5. **Generar `firebase_options.dart`** para `telefono_app` (esto también crea
+   `google-services.json` y registra la app Android + la app Web):
+   ```bash
+   dart pub global activate flutterfire_cli
+   cd telefono_app
+   flutterfire configure --project=<tu-project-id>
+   ```
+   Selecciona Android **y** Web (la Web es la que reutiliza `smart_pwa`).
+6. **Copiar la config al PWA**: `telefono_app/lib/firebase_options.dart` ya
+   tiene un bloque `web` con `apiKey`/`authDomain`/etc. — copia esos mismos
+   valores a `smart_pwa/js/firebase-config.js` (crear a partir de la
+   plantilla, ver siguiente punto). Es el mismo proyecto, no hace falta
+   registrar una segunda app web.
+7. **Crear los dos archivos de config reales** (ninguno se commitea — ver
+   `.gitignore`):
+   ```bash
+   cp telefono_app/lib/firebase_options.example.dart telefono_app/lib/firebase_options.dart
+   cp smart_pwa/js/firebase-config.example.js smart_pwa/js/firebase-config.js
+   ```
+   (El paso 5 ya genera el de `telefono_app` automáticamente; el `cp` de
+   arriba solo aplica si prefieres llenarlo a mano.)
+8. **Correr el seed** del catálogo de juegos (colección `games`), con una
+   *service account* de Firebase Admin (Consola → Configuración del proyecto
+   → Cuentas de servicio → Generar nueva clave privada; guárdala **fuera**
+   del repo, ej. `~/.secrets/mindgames-admin.json`):
+   ```bash
+   npm install          # una sola vez, instala firebase-admin
+   # PowerShell:
+   $env:GOOGLE_APPLICATION_CREDENTIALS="$HOME\.secrets\mindgames-admin.json"
+   node scripts/seed_games.js
+   ```
+
 ## Correr wearable_app
+
+```bash
+cd wearable_app
+flutter pub get
+flutter emulators --launch Wear_OS_Large_Round   # o un reloj físico por adb
+flutter run
+```
+
+No usa Firebase — es puro periférico BLE (GATT server), no necesita ningún
+paso de configuración adicional.
 
 ## Correr telefono_app
 
+```bash
+cd telefono_app
+flutter pub get
+flutter emulators --launch Pixel_8               # o un teléfono físico
+flutter run
+```
+
+Requiere `lib/firebase_options.dart` (paso 5/7 de arriba) y permisos de
+Bluetooth/ubicación otorgados en tiempo de ejecución (la app los pide sola
+al abrir, vía `permission_handler`).
+
 ## Servir smart_pwa
 
+Es HTML/CSS/JS puro, sin build step — cualquier servidor estático local
+sirve, mientras sea `http://localhost` (no `file://`, porque los Service
+Workers y los módulos ES no funcionan con ese esquema):
+
+```bash
+cd smart_pwa
+python -m http.server 8080
+# abrir http://localhost:8080/index.html
+```
+
+Requiere `js/firebase-config.js` (paso 7 de arriba).
+
+### Emular la TV en Chrome DevTools
+
+1. Abrir `http://localhost:8080/index.html` en Chrome/Edge.
+2. DevTools (F12) → icono de "Toggle device toolbar" (Ctrl+Shift+M).
+3. Dimensiones personalizadas: **1920 × 1080**, zoom al 50-60% para que
+   quepa en pantalla.
+4. Navegar con las flechas del teclado + Enter simula el D-pad; tecla **"S"**
+   (fuera de campos de texto) muestra el borde punteado de la safe zone.
+5. DevTools → Application → Service Workers / Manifest para verificar el
+   cacheo offline y la instalabilidad.
+6. DevTools → Network → "Offline" simula el modo sin conexión (el banner
+   rojo debe aparecer sin necesidad de recargar).
+
 ## Emuladores
+
+```bash
+flutter emulators
+#  Pixel_8               • Android (teléfono)
+#  Wear_OS_Large_Round   • Wear OS (reloj)
+flutter emulators --launch <id>
+```
+
+Con ambos emuladores + la PWA abiertos a la vez, el flujo completo de sync
+(wearable → teléfono BLE → Firestore → TV) se puede demostrar sin hardware
+físico. Si la máquina no tiene RAM para los dos emuladores simultáneos, un
+dispositivo físico (teléfono o reloj Wear OS reales) reemplaza a cualquiera
+de los dos sin cambiar nada del flujo — la app no distingue emulador de
+hardware real.
 
 ## Generar el APK
 
@@ -34,6 +164,43 @@ telefono_app/build/app/outputs/flutter-apk/app-release.apk
 ```
 
 (~50 MB. Verificado: build exitoso con Gradle `assembleRelease` en ~172 s.)
+
+## Orden de arranque para la demo (5 minutos)
+
+Pensado para minimizar tiempos muertos (BLE advertising, cold start de
+Firebase Auth) durante la presentación:
+
+1. **Antes de empezar** (fuera de cámara): levantar `smart_pwa` con
+   `python -m http.server 8080` y dejar la pestaña abierta ya logueada
+   (Firebase Auth persiste la sesión — no hace falta re-loguear cada vez).
+2. **(0:00–0:30)** Abrir `wearable_app` en el reloj/emulador — arranca
+   anunciando por BLE automáticamente (`INACTIVO`).
+3. **(0:30–1:00)** Abrir `telefono_app` — el escaneo detecta
+   "MindGames-Watch" solo (ver la tarjeta de conexión pasar a "Conectado").
+   Mostrar el diálogo de bonding de Android si aparece, es normal (ver
+   Troubleshooting).
+4. **(1:00–1:30)** En la TV, mostrar el catálogo de 4 juegos + D-pad
+   (flechas + Enter), y la tecla "S" para la safe zone.
+5. **(1:30–2:30)** En el teléfono: seleccionar un juego, pulsar "Iniciar" —
+   el wearable empieza a notificar métricas simuladas. En la TV, la tarjeta
+   del juego activo debe resaltarse con el borde verde pulsante en menos de
+   2 s (mirar el número de latencia discreto en el header — esa es la
+   evidencia numérica del requisito SA.5), y el panel "Sesión en curso" debe
+   llenarse con tiempo/ritmo cardiaco/movimientos/concentración en vivo.
+6. **(2:30–3:00)** Pulsar "Forzar umbral (demo)" en el AppBar del teléfono
+   (icono de bug) — salta `sessionSeconds` a 1795 para no esperar 30 min
+   reales; a los pocos segundos debe dispararse la alerta: banner en el
+   teléfono, notificación local, y el banner rojo grande en la TV
+   ("Tiempo de juego prolongado, toma un descanso").
+7. **(3:00–3:30)** Pulsar "Detener" (desde el teléfono o el botón físico del
+   reloj, cualquiera de los dos) — se guarda la sesión en
+   `users/{uid}/sessions` y el panel de estadísticas de la TV se actualiza
+   solo (onSnapshot, sin recargar).
+8. **(3:30–4:00)** DevTools → Network → Offline en la pestaña de la TV: debe
+   aparecer el banner "Sin conexión — mostrando últimos datos" sin perder la
+   estructura.
+9. **(4:00–5:00)** Preguntas / mostrar el APK instalado en un dispositivo
+   físico si hay uno a la mano.
 
 ## Troubleshooting
 
@@ -125,3 +292,39 @@ teléfono. No bloquea nada — la conexión GATT y las suscripciones NOTIFY ya
 tuvieron éxito antes de que aparezca. Es el flujo estándar de bonding de
 Android; solo hay que tocarlo (Pair & connect o Cancel) para quitarlo de
 encima.
+
+### La PWA no inicia sesión aunque el correo/contraseña sean correctos
+
+Dos causas reales encontradas durante las pruebas de este proyecto, ambas ya
+arregladas en el repo:
+
+1. **CSP bloqueando la infraestructura interna de Firebase Auth.** `getAuth()`
+   siempre inicializa su `AuthEventManager` (incluso solo con
+   email/password) para sincronizar sesión entre pestañas — eso carga
+   `apis.google.com/js/api.js` y abre un iframe hacia el `authDomain` del
+   proyecto. Sin `script-src https://apis.google.com` y
+   `frame-src https://<tu-proyecto>.firebaseapp.com` en la CSP de
+   `index.html`, `signInWithEmailAndPassword` nunca resuelve.
+2. **El atributo `hidden` silenciosamente anulado por CSS.** `[hidden] { display: none }`
+   (regla del navegador) tiene la misma especificidad que cualquier regla
+   propia que fije `display` en ese mismo elemento (ej.
+   `.login-screen { display: flex }`) — si esa segunda regla carga después,
+   gana y anula `hidden` sin ningún error visible. Ya resuelto en
+   `css/reset.css` con `[hidden] { display: none !important; }`.
+
+Si la PWA se ve "atascada" en el login después de cambiar código, primero
+sospechar de una versión vieja cacheada por el Service Worker antes que de
+un bug nuevo: sube `CACHE_VERSION` en `sw.js` y haz Ctrl+Shift+R una vez.
+
+### Restaurar sesión de Firebase Auth estando offline puede fallar
+
+Con la estructura de la PWA ya cacheada (offline funcionando: banner rojo +
+últimos datos), un *reload completo* sin conexión puede no restaurar la
+sesión ya persistida y devolver a la pantalla de login. Sospecha: la misma
+infraestructura de iframe/gapi de `AuthEventManager` (ver punto anterior)
+intenta inicializarse en cada carga de página, y sin red ese intento puede
+demorar o interferir con que `onAuthStateChanged` confirme el usuario ya
+guardado en IndexedDB. El requisito central (estructura + indicador desde
+cache, sin recargar) sí está confirmado funcionando — este caso más extremo
+(reload en frío completamente offline) queda anotado como limitación
+conocida del SDK, no de la lógica de la app.

@@ -3,6 +3,8 @@
 // y el atajo de depuración de la safe zone (tecla "S").
 import { auth, onAuthStateChanged, signInWithEmailAndPassword } from './firebase-init.js';
 import { escucharJuegos, escucharEstadisticas } from './firestore-service.js';
+import { escucharSesionEnVivo } from './sync.js';
+import { emitirToggleSafeZone, escucharToggleSafeZone } from './broadcast.js';
 import { DpadNavigator } from './dpad.js';
 import { registrarServiceWorker } from './sw-register.js';
 
@@ -26,13 +28,27 @@ const statFavoritoEl = document.getElementById('stat-favorito');
 const mediaA = document.getElementById('media-a');
 const mediaB = document.getElementById('media-b');
 
+const syncEstadoEl = document.getElementById('sync-estado');
+const syncLatenciaEl = document.getElementById('sync-latencia');
+const alertaSesionEl = document.getElementById('alerta-sesion');
+const panelSesionVivoEl = document.getElementById('panel-sesion-vivo');
+const sesionVivoJuegoEl = document.getElementById('sesion-vivo-juego');
+const sesionVivoTiempoEl = document.getElementById('sesion-vivo-tiempo');
+const sesionVivoHeartrateEl = document.getElementById('sesion-vivo-heartrate');
+const sesionVivoMovesEl = document.getElementById('sesion-vivo-moves');
+const sesionVivoFocusEl = document.getElementById('sesion-vivo-focus');
+
 let dpad = null;
 let unsubJuegos = null;
 let unsubEstadisticas = null;
+let unsubSync = null;
 let todosLosJuegos = [];
 let juegosActuales = [];
 let relojIniciado = false;
 let fondoActivoId = 'media-a';
+let ultimoActualizadoEnMillis = null;
+let tickerLatencia = null;
+let gameIdSincronizado = null;
 
 // ============================== AUTENTICACIÓN ==============================
 // Firebase Auth persiste la sesión en IndexedDB: solo hace falta iniciar
@@ -89,6 +105,16 @@ onAuthStateChanged(auth, (usuario) => {
         ? nombreDeJuego(estadisticas.juegoMasJugado)
         : '—';
     });
+
+    if (unsubSync) unsubSync();
+    unsubSync = escucharSesionEnVivo(usuario.uid, {
+      onCambio: onCambioSesionEnVivo,
+      onSinSesion: ocultarSesionEnVivo,
+      onError: (reintentando) => {
+        syncEstadoEl.hidden = !reintentando;
+      },
+    });
+    iniciarTickerLatencia();
   } else {
     loginScreen.hidden = false;
     dashboard.hidden = true;
@@ -101,6 +127,12 @@ onAuthStateChanged(auth, (usuario) => {
       unsubEstadisticas();
       unsubEstadisticas = null;
     }
+    if (unsubSync) {
+      unsubSync();
+      unsubSync = null;
+    }
+    detenerTickerLatencia();
+    ocultarSesionEnVivo();
     if (dpad) {
       dpad.desactivar();
       dpad = null;
@@ -186,6 +218,8 @@ function renderizarJuegos(juegos) {
   } else {
     iniciarDpad();
   }
+
+  marcarTarjetaSincronizada(gameIdSincronizado); // el re-render de arriba borró el ::after pulsante
 }
 
 function iniciarDpad() {
@@ -201,6 +235,79 @@ function iniciarDpad() {
     },
   });
   dpad.activar();
+}
+
+// ============================== SYNC EN VIVO (sessionState/{uid}) ==============================
+// Corazón del ecosistema: lo que llega aquí viene de js/sync.js (onSnapshot,
+// sin polling) y debe reflejarse en la TV en < 2 s (SA.5) — de ahí la
+// latencia pintada en el header, calculada con cada tick del ticker de abajo.
+
+function onCambioSesionEnVivo(datos, fromCache) {
+  syncEstadoEl.hidden = !fromCache;
+  ultimoActualizadoEnMillis = datos.actualizadoEn ? datos.actualizadoEn.toMillis() : null;
+  actualizarLatencia();
+
+  const activo = typeof datos.activityStatus === 'string' && datos.activityStatus.startsWith('JUGANDO');
+
+  marcarTarjetaSincronizada(activo ? datos.gameId : null);
+
+  if (activo) {
+    panelSesionVivoEl.hidden = false;
+    sesionVivoJuegoEl.textContent = datos.gameId ? nombreDeJuego(datos.gameId) : '—';
+    sesionVivoTiempoEl.textContent = formatearMMSS(datos.sessionSeconds || 0);
+    sesionVivoHeartrateEl.textContent = `${datos.heartRate || 0} bpm`;
+    sesionVivoMovesEl.textContent = `${datos.moves || 0}`;
+    sesionVivoFocusEl.textContent = `${Math.round(datos.focusLevel || 0)}%`;
+  } else {
+    panelSesionVivoEl.hidden = true;
+  }
+
+  alertaSesionEl.hidden = !datos.alertaActiva;
+}
+
+function ocultarSesionEnVivo() {
+  panelSesionVivoEl.hidden = true;
+  alertaSesionEl.hidden = true;
+  marcarTarjetaSincronizada(null);
+  ultimoActualizadoEnMillis = null;
+  actualizarLatencia();
+}
+
+function marcarTarjetaSincronizada(gameId) {
+  gameIdSincronizado = gameId; // recordado para reaplicar tras un re-render de renderizarJuegos()
+  const indice = gameId ? juegosActuales.findIndex((j) => j.id === gameId) : -1;
+  gridEl.querySelectorAll('.game-card').forEach((el, i) => {
+    el.classList.toggle('sync-activo', i === indice);
+  });
+}
+
+function formatearMMSS(totalSegundos) {
+  const minutos = Math.floor(totalSegundos / 60);
+  const segundos = totalSegundos % 60;
+  return `${String(minutos).padStart(2, '0')}:${String(segundos).padStart(2, '0')}`;
+}
+
+function iniciarTickerLatencia() {
+  if (tickerLatencia) return;
+  tickerLatencia = setInterval(actualizarLatencia, 1000);
+}
+
+function detenerTickerLatencia() {
+  clearInterval(tickerLatencia);
+  tickerLatencia = null;
+  syncLatenciaEl.hidden = true;
+  syncEstadoEl.hidden = true;
+}
+
+function actualizarLatencia() {
+  if (ultimoActualizadoEnMillis == null) {
+    syncLatenciaEl.hidden = true;
+    return;
+  }
+  const ms = Date.now() - ultimoActualizadoEnMillis;
+  syncLatenciaEl.hidden = false;
+  syncLatenciaEl.textContent = `Sync: ${(ms / 1000).toFixed(1)}s`;
+  syncLatenciaEl.classList.toggle('latencia-alta', ms > 2000);
 }
 
 // ============================== FONDO MULTIMEDIA (crossfade) ==============================
@@ -255,6 +362,8 @@ window.addEventListener('offline', actualizarIndicadorOffline);
 actualizarIndicadorOffline();
 
 // ============================== DEBUG: SAFE ZONE (tecla "S") ==============================
+// El toggle se propaga por BroadcastChannel a otras pestañas de la misma
+// PWA (ej. la TV reflejada en dos ventanas durante la demo).
 
 document.addEventListener('keydown', (evento) => {
   const campoDeTexto =
@@ -262,6 +371,11 @@ document.addEventListener('keydown', (evento) => {
   if (campoDeTexto) return;
 
   if (evento.key === 's' || evento.key === 'S') {
-    safeZoneEl.classList.toggle('mostrar-safe-zone');
+    const mostrar = safeZoneEl.classList.toggle('mostrar-safe-zone');
+    emitirToggleSafeZone(mostrar);
   }
+});
+
+escucharToggleSafeZone((mostrar) => {
+  safeZoneEl.classList.toggle('mostrar-safe-zone', mostrar);
 });
