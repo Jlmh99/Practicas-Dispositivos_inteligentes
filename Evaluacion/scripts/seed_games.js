@@ -45,7 +45,7 @@ async function seed() {
       tiempoPromedioSeg: game.tiempoPromedioSeg,
       // Ruta relativa a la carpeta de la PWA. Si el archivo no existe,
       // la TV cae al fallback (elemento evaluado en SA.2.C).
-      mediaUrl: `assets/media/${game.id}.jpg`,
+      mediaUrl: `assets/media/${game.id}.png`,
       estado: game.estado,
       orden: index + 1,
     });

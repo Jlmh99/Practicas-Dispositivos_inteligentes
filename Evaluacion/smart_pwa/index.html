@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=1920, initial-scale=1" />
+    <!--
+      CSP: todo 'self' salvo connect-src (Firebase Auth/Firestore, incluye
+      el websocket de Firestore para su canal en tiempo real).
+
+      script-src/frame-src necesitan dos excepciones puntuales, encontradas
+      en vivo (el navegador bloqueaba el login por completo, sin ellas):
+      Firebase Auth SIEMPRE inicializa su "AuthEventManager" interno al
+      llamar getAuth() —incluso solo con email/password, sin OAuth— para
+      sincronizar el estado de sesión entre pestañas. Eso carga
+      apis.google.com/js/api.js y abre un iframe hacia el authDomain del
+      proyecto (mind-games-ddi.firebaseapp.com). Sin estas dos excepciones,
+      signInWithEmailAndPassword nunca resuelve.
+
+      Nota: `frame-ancestors` no tiene efecto en un <meta> CSP (el spec de
+      CSP lo ignora fuera de una cabecera HTTP real) — se deja declarado
+      igual porque no estorba y documenta la intención; si algún día esto
+      se sirve con un servidor propio, debe repetirse como cabecera HTTP.
+    -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self' https://apis.google.com; frame-src https://mind-games-ddi.firebaseapp.com; connect-src 'self' https://firestore.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com wss://firestore.googleapis.com; object-src 'none'; base-uri 'self'; frame-ancestors 'none';"
+    />
+    <title>Mind Games TV</title>
+    <link rel="manifest" href="./manifest.json" />
+    <link rel="icon" href="./assets/icons/icon-192.png" />
+    <link rel="stylesheet" href="./css/reset.css" />
+    <link rel="stylesheet" href="./css/tv.css" />
+  </head>
+  <body>
+    <div id="offline-indicator" class="offline-indicator" hidden>
+      Sin conexión — mostrando últimos datos
+    </div>
+
+    <!-- LOGIN: campos normales de teclado, sin navegación D-pad. -->
+    <section id="login-screen" class="login-screen">
+      <div class="login-card">
+        <img class="login-logo" src="./assets/media/Logo.png" alt="Mind Games" />
+        <form id="login-form" novalidate>
+          <label for="login-email">Correo</label>
+          <input id="login-email" type="email" autocomplete="username" required />
+
+          <label for="login-password">Contraseña</label>
+          <input id="login-password" type="password" autocomplete="current-password" required />
+
+          <p id="login-error" class="login-error" hidden></p>
+
+          <button type="submit">Entrar</button>
+        </form>
+      </div>
+    </section>
+
+    <!-- DASHBOARD -->
+    <div id="dashboard" class="dashboard" hidden>
+      <div id="media-background" class="media-background">
+        <img id="media-a" class="media-layer activa" alt="" />
+        <img id="media-b" class="media-layer" alt="" />
+      </div>
+
+      <div id="safe-zone">
+        <header class="header">
+          <div class="header-left">
+            <span id="clock" class="clock"></span>
+            <span id="date" class="date"></span>
+          </div>
+          <div class="header-right">Mind Games · Ecosistema DDI · 2023371106</div>
+        </header>
+
+        <main class="main">
+          <div id="games-grid" class="games-grid" role="list" aria-label="Juegos"></div>
+
+          <aside class="stats-panel">
+            <h2>Tus estadísticas</h2>
+            <dl>
+              <dt>Partidas totales</dt>
+              <dd id="stat-partidas">—</dd>
+              <dt>Tiempo total jugado</dt>
+              <dd id="stat-tiempo">—</dd>
+              <dt>Juego más jugado</dt>
+              <dd id="stat-favorito">—</dd>
+            </dl>
+          </aside>
+        </main>
+      </div>
+    </div>
+
+    <script type="module" src="./js/app.js"></script>
+  </body>
+</html>

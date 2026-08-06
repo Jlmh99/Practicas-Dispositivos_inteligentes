@@ -1,0 +1,48 @@
+/* Reset mínimo — solo lo necesario para un layout de TV fijo, sin scroll. */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+/* El atributo `hidden` del HTML se implementa vía `[hidden] { display: none }`
+   en la hoja de estilos del navegador — pero cualquier regla nuestra que
+   fije `display` en ese mismo elemento (ej. `.login-screen { display: flex }`)
+   tiene la MISMA especificidad y, al cargar después, gana y anula `hidden`
+   en silencio (el atributo queda puesto, pero no oculta nada). Con
+   `!important` aquí nos aseguramos de que `hidden` siempre gane, sin
+   importar qué otra regla de `display` exista para ese elemento. */
+[hidden] {
+  display: none !important;
+}
+
+html,
+body {
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden; /* cero scroll en ambas dimensiones, es TV, no hay mouse wheel */
+}
+
+img {
+  display: block;
+  max-width: 100%;
+}
+
+button,
+input {
+  font-family: inherit;
+  color: inherit;
+}
+
+ul,
+ol {
+  list-style: none;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
