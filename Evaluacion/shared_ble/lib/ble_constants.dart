@@ -25,6 +25,14 @@ const String kCharStatusUuid = '6d696e64-0006-1000-8000-00805f9b34fb';
 /// UUID de la característica de control (WRITE, 0x01 iniciar / 0x00 detener).
 const String kCharControlUuid = '6d696e64-0007-1000-8000-00805f9b34fb';
 
+/// UUID de la característica de selección de juego (WRITE, UTF-8, ej.
+/// "CRUCIGRAMA"). El wearable no tiene forma de saber qué juego se eligió
+/// en el teléfono por ningún otro medio — CHAR_CONTROL es solo iniciar/
+/// detener — así que el teléfono escribe aquí cada vez que el usuario elige
+/// un juego, y el wearable usa ese valor para el sufijo de CHAR_STATUS
+/// (`"JUGANDO:<lo último escrito aquí>"`).
+const String kCharGameSelectUuid = '6d696e64-0008-1000-8000-00805f9b34fb';
+
 /// Identifica cada característica del contrato BLE junto con su UUID.
 enum CharacteristicType {
   heartRate(kCharHeartRateUuid),
@@ -32,7 +40,8 @@ enum CharacteristicType {
   moves(kCharMovesUuid),
   focus(kCharFocusUuid),
   status(kCharStatusUuid),
-  control(kCharControlUuid);
+  control(kCharControlUuid),
+  gameSelect(kCharGameSelectUuid);
 
   const CharacteristicType(this.uuid);
 

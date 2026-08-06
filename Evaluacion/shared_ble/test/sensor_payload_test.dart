@@ -64,6 +64,18 @@ void main() {
     });
   });
 
+  group('gameSelect (UTF-8)', () {
+    test('round-trip', () {
+      final bytes = SensorPayload.encodeGameSelect('CRUCIGRAMA');
+      expect(SensorPayload.decodeGameSelect(bytes), 'CRUCIGRAMA');
+    });
+
+    test('bytes UTF-8 inválidos devuelven null', () {
+      final invalid = Uint8List.fromList([0xFF, 0xFE, 0xFD]);
+      expect(SensorPayload.decodeGameSelect(invalid), isNull);
+    });
+  });
+
   group('SensorPayload', () {
     test('constructor guarda todos los campos', () {
       const payload = SensorPayload(

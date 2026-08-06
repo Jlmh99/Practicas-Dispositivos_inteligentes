@@ -31,6 +31,7 @@ class BleClient {
   EstadoConexionBle _estadoActual = const EstadoInactivo();
   BluetoothDevice? _dispositivo;
   BluetoothCharacteristic? _controlChar;
+  BluetoothCharacteristic? _gameSelectChar;
   final List<StreamSubscription> _subsCaracteristicas = [];
   StreamSubscription<BluetoothConnectionState>? _subConexion;
   Timer? _reconexionTimer;
@@ -149,6 +150,10 @@ class BleClient {
           _controlChar = caracteristica;
           continue;
         }
+        if (caracteristica.uuid == Guid(kCharGameSelectUuid)) {
+          _gameSelectChar = caracteristica;
+          continue;
+        }
         await caracteristica.setNotifyValue(true);
         _subsCaracteristicas.add(
           caracteristica.onValueReceived.listen(
@@ -170,6 +175,7 @@ class BleClient {
     if (estado == BluetoothConnectionState.disconnected) {
       unawaited(_limpiarSuscripcionesCaracteristicas());
       _controlChar = null;
+      _gameSelectChar = null;
       if (_detenido) return;
       _emitirEstado(const EstadoDesconectado());
       _programarReconexion();
@@ -220,6 +226,24 @@ class BleClient {
     if (caracteristica == null) return;
     try {
       await caracteristica.write([iniciar ? 0x01 : 0x00], withoutResponse: false);
+    } catch (_) {
+      // Defensivo: el wearable pudo desconectarse justo antes de escribir.
+    }
+  }
+
+  /// Escribe el id del juego elegido en CHAR_GAME_SELECT, para que el
+  /// wearable pueda reportarlo en su propio CHAR_STATUS. Si el wearable no
+  /// está conectado todavía, no hace nada — nunca lanza (mismo criterio
+  /// defensivo que `enviarControl`); cuando se conecte y el usuario vuelva a
+  /// tocar un juego, se escribe entonces.
+  Future<void> enviarJuegoSeleccionado(String gameId) async {
+    final caracteristica = _gameSelectChar;
+    if (caracteristica == null) return;
+    try {
+      await caracteristica.write(
+        SensorPayload.encodeGameSelect(gameId.toUpperCase()),
+        withoutResponse: false,
+      );
     } catch (_) {
       // Defensivo: el wearable pudo desconectarse justo antes de escribir.
     }

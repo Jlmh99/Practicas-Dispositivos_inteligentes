@@ -1,12 +1,11 @@
 // Service Worker de Mind Games TV.
 // - Cache First para el app shell (html/css/js/iconos/media): responde
 //   desde cache al instante, y si no está, va a red y la guarda.
-// - Network First (con fallback a cache) para firestore.googleapis.com:
-//   siempre intenta la red primero (datos en vivo), y si no hay red, sirve
-//   la última respuesta que se guardó — así el offline muestra "los
-//   últimos datos" en vez de nada.
+// - firestore.googleapis.com: SIN intervención del Service Worker (ver nota
+//   en el listener de "fetch" más abajo — hubo una versión anterior que sí
+//   lo cacheaba, pero exponía un riesgo real de cruzar datos entre cuentas).
 
-const CACHE_VERSION = 'mind-games-tv-v6';
+const CACHE_VERSION = 'mind-games-tv-v8';
 
 const APP_SHELL = [
   './',
@@ -68,11 +67,20 @@ self.addEventListener('fetch', (event) => {
 
   if (event.request.method !== 'GET') return;
 
-  // Datos en vivo de Firestore: red primero, cache como respaldo offline.
-  if (url.hostname === 'firestore.googleapis.com') {
-    event.respondWith(networkFirst(event.request));
-    return;
-  }
+  // Firestore: dejarlo pasar sin tocar. Su canal de datos en tiempo real
+  // (WebChannel) hace GET de long-polling contra la MISMA ruta
+  // (".../Listen/channel") para sesiones de CUENTAS distintas — solo cambia
+  // el query string (SID de la conexión). Una versión anterior de este
+  // Service Worker cacheaba estas respuestas por Request (Cache API, que
+  // por defecto compara la URL completa) pensando que así sobrevivía el
+  // modo offline — pero si la red fallaba justo al cambiar de cuenta, existía
+  // el riesgo real de servir una respuesta vieja de OTRA sesión ya
+  // cacheada. Quitado por seguridad: además resultó innecesario, porque el
+  // indicador "sin conexión, mostrando últimos datos" ya funciona solo con
+  // el comportamiento nativo del SDK — cada `onSnapshot` activo se queda
+  // pintando su último valor en memoria aunque la red se caiga, sin que el
+  // Service Worker tenga que guardar ni servir nada.
+  if (url.hostname === 'firestore.googleapis.com') return;
 
   // Todo lo demás que sea de nuestro propio origen: cache primero.
   if (url.origin === self.location.origin) {
@@ -90,19 +98,4 @@ async function cacheFirst(request) {
     cache.put(request, respuesta.clone());
   }
   return respuesta;
-}
-
-async function networkFirst(request) {
-  try {
-    const respuesta = await fetch(request);
-    if (respuesta.ok) {
-      const cache = await caches.open(CACHE_VERSION);
-      cache.put(request, respuesta.clone());
-    }
-    return respuesta;
-  } catch (error) {
-    const cacheado = await caches.match(request);
-    if (cacheado) return cacheado;
-    throw error;
-  }
 }

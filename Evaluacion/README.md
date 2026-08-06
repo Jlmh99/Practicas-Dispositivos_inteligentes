@@ -316,6 +316,34 @@ Si la PWA se ve "atascada" en el login después de cambiar código, primero
 sospechar de una versión vieja cacheada por el Service Worker antes que de
 un bug nuevo: sube `CACHE_VERSION` en `sw.js` y haz Ctrl+Shift+R una vez.
 
+### El teléfono y el wearable dicen "JUGANDO:SUDOKU" sin importar el juego elegido
+
+El wearable no tiene ninguna forma de saber qué juego se seleccionó en el
+teléfono — `CHAR_CONTROL` original solo era iniciar/detener (1 byte), y
+`SensorSimulator._juego` traía "SUDOKU" hardcodeado sin que nada lo
+actualizara. Esto era visible en `MonitorWidget` del teléfono, en la propia
+pantalla del reloj, y (aunque ahí no se notaba, porque la PWA usa
+`sessionState.gameId` en vez de parsear `activityStatus`) también viajaba
+así hasta Firestore.
+
+Arreglado extendiendo el contrato BLE: nueva característica
+`CHAR_GAME_SELECT` (WRITE, UTF-8) — el teléfono escribe ahí el id del juego
+cada vez que el usuario toca una tarjeta en `GamesList`
+(`firestore_provider.dart` → `JuegoSeleccionadoNotifier.seleccionar()`), el
+wearable la recibe en su `_onWriteRequest` y llama
+`SensorSimulator.setJuego()`, que ya existía pero nunca se conectaba a
+nada. Además, `telefono_app` reconstruye el sufijo de `activityStatus` con
+el juego real elegido (`activity_provider.dart` → `_conJuegoReal()`) como
+salvaguarda extra por si el WRITE BLE no llegó a tiempo.
+
+También se corrigió, en el mismo lote: el wearable acumulaba
+`sessionSeconds` entre sesiones distintas en vez de reiniciar en cada
+"Iniciar" (`SensorSimulator.reset()` existía pero nunca se llamaba) — lo que
+además rompía el botón "Forzar umbral (demo)" del teléfono, porque el
+siguiente tick real de BLE (~1/s) sobrescribía el valor forzado casi de
+inmediato. El botón ahora aplica un desfase sobre el valor real en vez de
+reemplazarlo directo, así que sobrevive a los ticks siguientes.
+
 ### Restaurar sesión de Firebase Auth estando offline puede fallar
 
 Con la estructura de la PWA ya cacheada (offline funcionando: banner rojo +

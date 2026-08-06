@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../services/notificaciones_service.dart';
 import 'ble_provider.dart';
+import 'firestore_provider.dart';
 
 /// Umbrales de alerta (fuente de verdad: CLAUDE.md).
 const int kUmbralSessionSeconds = 1800;
@@ -116,6 +117,15 @@ List<T> _conLimite<T>(List<T> historial, T nuevo) {
 class ActivityNotifier extends Notifier<ActivityState> {
   final List<StreamSubscription> _subs = [];
 
+  // El wearable notifica su propio contador real cada ~1 s (BLE NOTIFY), sin
+  // que el teléfono pueda pedirle que "salte" a un valor (CHAR_CONTROL solo
+  // tiene iniciar/detener). Por eso `debugForzarUmbral()` no puede escribir
+  // sessionSeconds directamente: el siguiente tick real lo pisaría de
+  // inmediato. En vez de eso, guarda un desfase que se le suma a cada valor
+  // real que llegue — así el forzado "se pega" en vez de perderse en <1 s.
+  int _ultimoSessionSecondsReal = 0;
+  int _offsetSessionSeconds = 0;
+
   @override
   ActivityState build() {
     final client = ref.watch(bleClientProvider);
@@ -144,9 +154,11 @@ class ActivityNotifier extends Notifier<ActivityState> {
   }
 
   void _onSessionSeconds(int valor) {
+    _ultimoSessionSecondsReal = valor;
+    final efectivo = valor + _offsetSessionSeconds;
     state = state.copyWith(
-      sessionSeconds: valor,
-      sessionSecondsHistorial: _conLimite(state.sessionSecondsHistorial, valor),
+      sessionSeconds: efectivo,
+      sessionSecondsHistorial: _conLimite(state.sessionSecondsHistorial, efectivo),
     );
     _evaluarUmbrales();
   }
@@ -166,8 +178,23 @@ class ActivityNotifier extends Notifier<ActivityState> {
     _evaluarUmbrales();
   }
 
+  // El wearable no tiene forma de saber qué juego se eligió en el teléfono
+  // (CHAR_CONTROL solo es iniciar/detener, no hay característica para
+  // "elegir juego") — así que siempre notifica "JUGANDO:<lo que sea que
+  // tenga hardcodeado localmente>", sin relación con juegoSeleccionadoProvider.
+  // telefono_app es "el único puente entre BLE y la nube" (CLAUDE.md), así
+  // que aquí es donde corresponde corregirlo: se reconstruye el sufijo con
+  // el juego real elegido antes de guardarlo en el estado (de ahí sale tanto
+  // lo que se ve en MonitorWidget como lo que se publica en sessionState).
   void _onActivityStatus(String valor) {
-    state = state.copyWith(activityStatus: valor);
+    state = state.copyWith(activityStatus: _conJuegoReal(valor));
+  }
+
+  String _conJuegoReal(String valorCrudo) {
+    if (!valorCrudo.startsWith('JUGANDO:')) return valorCrudo; // PAUSA / INACTIVO no cambian
+    final gameId = ref.read(juegoSeleccionadoProvider);
+    if (gameId == null) return valorCrudo; // aún no se eligió juego en el teléfono
+    return 'JUGANDO:${gameId.toUpperCase()}';
   }
 
   void _evaluarUmbrales() {
@@ -200,8 +227,18 @@ class ActivityNotifier extends Notifier<ActivityState> {
   /// Salta `sessionSeconds` a 1795 para poder demostrar la alerta del umbral
   /// principal en la demo sin esperar 30 minutos reales: el wearable sigue
   /// incrementando +1/s, así que cruza los 1800 a los pocos segundos.
+  ///
+  /// Guarda el salto como un DESFASE sobre el último valor real recibido
+  /// (no escribe 1795 directo en `state`): el wearable sigue notificando su
+  /// propio contador ~1 vez por segundo pase lo que pase, y si el forzado se
+  /// escribiera directo, el siguiente tick real lo sobrescribiría de
+  /// inmediato (a veces con un valor menor a 1800, cancelando la demo antes
+  /// de que se note). Con el desfase, cada tick real que llega después sigue
+  /// sumando sobre los 1795 en vez de reemplazarlos.
   void debugForzarUmbral() {
-    state = state.copyWith(sessionSeconds: 1795);
+    _offsetSessionSeconds = 1795 - _ultimoSessionSecondsReal;
+    final efectivo = _ultimoSessionSecondsReal + _offsetSessionSeconds;
+    state = state.copyWith(sessionSeconds: efectivo);
     _evaluarUmbrales();
   }
 }

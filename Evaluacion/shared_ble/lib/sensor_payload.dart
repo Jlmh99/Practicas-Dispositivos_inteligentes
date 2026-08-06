@@ -78,4 +78,18 @@ class SensorPayload {
       return null;
     }
   }
+
+  /// CHAR_GAME_SELECT — UTF-8, ej. "CRUCIGRAMA". WRITE del teléfono al
+  /// wearable (dirección opuesta a las demás: aquí el central escribe).
+  static Uint8List encodeGameSelect(String juego) {
+    return Uint8List.fromList(utf8.encode(juego));
+  }
+
+  static String? decodeGameSelect(Uint8List bytes) {
+    try {
+      return utf8.decode(bytes);
+    } on FormatException {
+      return null;
+    }
+  }
 }

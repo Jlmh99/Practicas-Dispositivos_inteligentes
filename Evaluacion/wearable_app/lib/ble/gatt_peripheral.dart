@@ -7,9 +7,13 @@ import 'package:shared_ble/shared_ble.dart';
 /// Periférico GATT con guardas de seguridad para evitar crashes en emuladores
 /// o dispositivos sin soporte BLE periférico.
 class GattPeripheral {
-  GattPeripheral({required this.onComandoControl});
+  GattPeripheral({required this.onComandoControl, required this.onJuegoSeleccionado});
 
   final void Function(bool iniciar) onComandoControl;
+
+  /// Llega por CHAR_GAME_SELECT (WRITE) cada vez que el teléfono cambia el
+  /// juego elegido — el wearable no tiene otra forma de saberlo.
+  final void Function(String juego) onJuegoSeleccionado;
 
   final _centralConectadoController = StreamController<bool>.broadcast();
   final _erroresController = StreamController<String>.broadcast();
@@ -111,6 +115,10 @@ class GattPeripheral {
         value != null &&
         value.isNotEmpty) {
       onComandoControl(value[0] == 0x01);
+    } else if (characteristicId.toUpperCase() == kCharGameSelectUuid.toUpperCase() &&
+        value != null) {
+      final juego = SensorPayload.decodeGameSelect(value);
+      if (juego != null) onJuegoSeleccionado(juego);
     }
     return null;
   }
@@ -127,6 +135,11 @@ class GattPeripheral {
         _characteristicaNotify(kCharStatusUuid),
         BleCharacteristic(
           uuid: kCharControlUuid,
+          properties: [CharacteristicProperties.write.index],
+          permissions: [AttributePermissions.writeable.index],
+        ),
+        BleCharacteristic(
+          uuid: kCharGameSelectUuid,
           properties: [CharacteristicProperties.write.index],
           permissions: [AttributePermissions.writeable.index],
         ),

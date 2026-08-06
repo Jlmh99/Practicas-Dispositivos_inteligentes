@@ -38,7 +38,10 @@ class _WatchHomeScreenState extends State<WatchHomeScreen> {
     super.initState();
     _simulador = SensorSimulator();
     _payload = _simulador.ultimo;
-    _periferico = GattPeripheral(onComandoControl: _onComandoControl);
+    _periferico = GattPeripheral(
+      onComandoControl: _onComandoControl,
+      onJuegoSeleccionado: _simulador.setJuego,
+    );
 
     _subPayload = _simulador.stream.listen((payload) {
       setState(() => _payload = payload);
@@ -78,6 +81,12 @@ class _WatchHomeScreenState extends State<WatchHomeScreen> {
 
   void _onComandoControl(bool iniciar) {
     if (iniciar) {
+      // reset() antes de start(): cada "iniciar" es una sesión NUEVA, no una
+      // reanudación. Sin esto, sessionSeconds seguía sumando desde la última
+      // vez que corrió el simulador (incluso entre juegos distintos), y el
+      // botón "Forzar umbral" del teléfono terminaba sobrescrito de
+      // inmediato por el valor real ya acumulado del wearable.
+      _simulador.reset();
       _simulador.start();
     } else {
       _simulador.stop();
@@ -88,6 +97,7 @@ class _WatchHomeScreenState extends State<WatchHomeScreen> {
     if (_simulador.running) {
       _simulador.stop();
     } else {
+      _simulador.reset();
       _simulador.start();
     }
   }

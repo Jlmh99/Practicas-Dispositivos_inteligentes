@@ -1,7 +1,8 @@
 // Orquesta toda la PWA: login, reloj del header, grilla de juegos + D-pad,
 // fondo multimedia con crossfade, panel de estadísticas, indicador offline
-// y el atajo de depuración de la safe zone (tecla "S").
-import { auth, onAuthStateChanged, signInWithEmailAndPassword } from './firebase-init.js';
+// y los atajos de depuración de la safe zone (tecla "S") y cerrar sesión
+// (tecla "L").
+import { auth, onAuthStateChanged, signInWithEmailAndPassword, signOut } from './firebase-init.js';
 import { escucharJuegos, escucharEstadisticas } from './firestore-service.js';
 import { escucharSesionEnVivo } from './sync.js';
 import { emitirToggleSafeZone, escucharToggleSafeZone } from './broadcast.js';
@@ -361,10 +362,16 @@ window.addEventListener('online', actualizarIndicadorOffline);
 window.addEventListener('offline', actualizarIndicadorOffline);
 actualizarIndicadorOffline();
 
-// ============================== DEBUG: SAFE ZONE (tecla "S") ==============================
-// El toggle se propaga por BroadcastChannel a otras pestañas de la misma
-// PWA (ej. la TV reflejada en dos ventanas durante la demo).
-
+// ============================== DEBUG: SAFE ZONE (tecla "S") / CERRAR SESIÓN (tecla "L") ==============================
+// El toggle de safe zone se propaga por BroadcastChannel a otras pestañas de
+// la misma PWA (ej. la TV reflejada en dos ventanas durante la demo).
+//
+// No hay botón de "cerrar sesión" visible en el dashboard a propósito — es
+// una TV, no un teléfono, y Firebase Auth persiste la sesión en IndexedDB
+// para que la demo arranque siempre ya autenticada. Pero probando con más
+// de una cuenta (ej. para no arrastrar datos viejos de otra cuenta en las
+// estadísticas) hace falta alguna forma de volver al login sin borrar el
+// storage del navegador a mano — de ahí este atajo.
 document.addEventListener('keydown', (evento) => {
   const campoDeTexto =
     document.activeElement && ['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName);
@@ -373,6 +380,8 @@ document.addEventListener('keydown', (evento) => {
   if (evento.key === 's' || evento.key === 'S') {
     const mostrar = safeZoneEl.classList.toggle('mostrar-safe-zone');
     emitirToggleSafeZone(mostrar);
+  } else if (evento.key === 'l' || evento.key === 'L') {
+    if (!dashboard.hidden) signOut(auth);
   }
 });
 

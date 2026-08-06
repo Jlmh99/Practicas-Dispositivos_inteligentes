@@ -41,9 +41,12 @@ class SensorSimulator {
         activityStatus: _activityStatus(),
       );
 
-  /// Cambia el juego reportado en `activityStatus` mientras está corriendo.
+  /// Cambia el juego reportado en `activityStatus`. Emite de inmediato (no
+  /// espera al próximo tick de 1 s) para que la pantalla del wearable
+  /// refleje la elección del teléfono sin retraso perceptible.
   void setJuego(String juego) {
     _juego = juego;
+    _emit();
   }
 
   /// Inicia (o reanuda) la generación de datos cada segundo.
