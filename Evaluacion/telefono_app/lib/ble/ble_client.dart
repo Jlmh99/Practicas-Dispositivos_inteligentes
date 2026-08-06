@@ -32,6 +32,7 @@ class BleClient {
   BluetoothDevice? _dispositivo;
   BluetoothCharacteristic? _controlChar;
   BluetoothCharacteristic? _gameSelectChar;
+  BluetoothCharacteristic? _timeOverrideChar;
   final List<StreamSubscription> _subsCaracteristicas = [];
   StreamSubscription<BluetoothConnectionState>? _subConexion;
   Timer? _reconexionTimer;
@@ -154,6 +155,10 @@ class BleClient {
           _gameSelectChar = caracteristica;
           continue;
         }
+        if (caracteristica.uuid == Guid(kCharSessionTimeOverrideUuid)) {
+          _timeOverrideChar = caracteristica;
+          continue;
+        }
         await caracteristica.setNotifyValue(true);
         _subsCaracteristicas.add(
           caracteristica.onValueReceived.listen(
@@ -176,6 +181,7 @@ class BleClient {
       unawaited(_limpiarSuscripcionesCaracteristicas());
       _controlChar = null;
       _gameSelectChar = null;
+      _timeOverrideChar = null;
       if (_detenido) return;
       _emitirEstado(const EstadoDesconectado());
       _programarReconexion();
@@ -242,6 +248,24 @@ class BleClient {
     try {
       await caracteristica.write(
         SensorPayload.encodeGameSelect(gameId.toUpperCase()),
+        withoutResponse: false,
+      );
+    } catch (_) {
+      // Defensivo: el wearable pudo desconectarse justo antes de escribir.
+    }
+  }
+
+  /// Escribe en CHAR_SESSION_TIME_OVERRIDE para que el reloj del wearable
+  /// salte al mismo valor que el botón "Forzar umbral (demo)" del teléfono,
+  /// y siga sumando desde ahí. Puramente cosmético (el wearable no necesita
+  /// mostrar la alerta), pero mantiene los tres relojes consistentes en la
+  /// demo. Si el wearable no está conectado, no hace nada — nunca lanza.
+  Future<void> enviarSessionSecondsOverride(int segundos) async {
+    final caracteristica = _timeOverrideChar;
+    if (caracteristica == null) return;
+    try {
+      await caracteristica.write(
+        SensorPayload.encodeSessionSeconds(segundos),
         withoutResponse: false,
       );
     } catch (_) {

@@ -82,6 +82,7 @@ class _PrivacyScreenState extends State<PrivacyScreen> {
                 onPressed: (_aceptado && !_procesando) ? _continuar : null,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: kAzulPrimario,
+                  foregroundColor: kGrisClaro,
                   padding: const EdgeInsets.symmetric(vertical: 14),
                 ),
                 child: _procesando

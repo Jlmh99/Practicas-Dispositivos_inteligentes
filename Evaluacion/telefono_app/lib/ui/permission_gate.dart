@@ -105,7 +105,10 @@ class _PermisosDenegadosScreen extends StatelessWidget {
                 const SizedBox(height: 16),
                 ElevatedButton(
                   onPressed: onReintentar,
-                  style: ElevatedButton.styleFrom(backgroundColor: kAzulPrimario),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: kAzulPrimario,
+                    foregroundColor: kGrisClaro,
+                  ),
                   child: const Text('Reintentar'),
                 ),
                 const SizedBox(height: 4),

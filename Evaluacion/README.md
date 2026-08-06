@@ -342,7 +342,32 @@ También se corrigió, en el mismo lote: el wearable acumulaba
 además rompía el botón "Forzar umbral (demo)" del teléfono, porque el
 siguiente tick real de BLE (~1/s) sobrescribía el valor forzado casi de
 inmediato. El botón ahora aplica un desfase sobre el valor real en vez de
-reemplazarlo directo, así que sobrevive a los ticks siguientes.
+reemplazarlo directo, así que sobrevive a los ticks siguientes. Además, ese
+mismo botón ahora empuja el salto de tiempo al wearable vía
+`CHAR_SESSION_TIME_OVERRIDE` (tercera característica agregada al contrato
+BLE en esta ronda), para que los tres relojes se vean consistentes en la
+demo — puramente cosmético, el wearable no necesita mostrar la alerta.
+
+### La PWA sigue mostrando los datos de la cuenta anterior tras iniciar sesión con otra
+
+No es una fuga de datos entre cuentas — es que no hay botón de "cerrar
+sesión" visible en el dashboard (a propósito: es una TV, se diseñó para
+arrancar siempre ya autenticada gracias a la persistencia de Firebase Auth
+en IndexedDB). Sin logout, la única cuenta activa sigue siendo la primera
+con la que se inició sesión, sin importar qué credenciales se vuelvan a
+escribir en un formulario que ya no está visible. Solución: tecla **"L"**
+(fuera de campos de texto) hace `signOut()` y regresa al login. Verificado
+en vivo con dos cuentas reales: cada una muestra sus propias estadísticas
+correctamente una vez que el cambio de sesión ocurre de verdad.
+
+(De paso, mientras se investigaba esto se encontró y corrigió un riesgo real
+en `sw.js`: cacheaba las respuestas de `firestore.googleapis.com` por URL
+completa para el modo offline, pero el canal de datos en tiempo real de
+Firestore usa una ruta GET fija para cualquier cuenta — existía el riesgo de
+servir una respuesta vieja de OTRA sesión si la red fallaba justo al cambiar
+de cuenta. Quitado: Firestore ya no pasa por el Service Worker, y el
+indicador de "sin conexión, mostrando últimos datos" sigue funcionando igual
+porque en realidad siempre dependió del propio SDK, no del SW.)
 
 ### Restaurar sesión de Firebase Auth estando offline puede fallar
 

@@ -75,8 +75,12 @@
         </header>
 
         <!-- Banner grande de alerta (umbral principal, sessionState.alertaActiva)
-             — evidencia visual del requisito de umbrales de CLAUDE.md. -->
-        <div id="alerta-sesion" class="alerta-sesion" hidden>
+             — evidencia visual del requisito de umbrales de CLAUDE.md.
+             Sin `hidden`: siempre ocupa su lugar en el flujo (oculta con
+             visibility:hidden vía la clase "activa" en css/tv.css), para que
+             el alto disponible de .main nunca cambie según su estado — ver
+             el comentario en tv.css, ahí está la historia completa del bug. -->
+        <div id="alerta-sesion" class="alerta-sesion">
           Tiempo de juego prolongado, toma un descanso
         </div>
 

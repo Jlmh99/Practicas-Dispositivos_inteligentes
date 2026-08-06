@@ -128,6 +128,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     onPressed: _cargando ? null : _iniciarSesion,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: kAzulPrimario,
+                      foregroundColor: kGrisClaro,
                       padding: const EdgeInsets.symmetric(vertical: 14),
                     ),
                     child: _cargando

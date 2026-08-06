@@ -117,15 +117,6 @@ List<T> _conLimite<T>(List<T> historial, T nuevo) {
 class ActivityNotifier extends Notifier<ActivityState> {
   final List<StreamSubscription> _subs = [];
 
-  // El wearable notifica su propio contador real cada ~1 s (BLE NOTIFY), sin
-  // que el teléfono pueda pedirle que "salte" a un valor (CHAR_CONTROL solo
-  // tiene iniciar/detener). Por eso `debugForzarUmbral()` no puede escribir
-  // sessionSeconds directamente: el siguiente tick real lo pisaría de
-  // inmediato. En vez de eso, guarda un desfase que se le suma a cada valor
-  // real que llegue — así el forzado "se pega" en vez de perderse en <1 s.
-  int _ultimoSessionSecondsReal = 0;
-  int _offsetSessionSeconds = 0;
-
   @override
   ActivityState build() {
     final client = ref.watch(bleClientProvider);
@@ -154,11 +145,9 @@ class ActivityNotifier extends Notifier<ActivityState> {
   }
 
   void _onSessionSeconds(int valor) {
-    _ultimoSessionSecondsReal = valor;
-    final efectivo = valor + _offsetSessionSeconds;
     state = state.copyWith(
-      sessionSeconds: efectivo,
-      sessionSecondsHistorial: _conLimite(state.sessionSecondsHistorial, efectivo),
+      sessionSeconds: valor,
+      sessionSecondsHistorial: _conLimite(state.sessionSecondsHistorial, valor),
     );
     _evaluarUmbrales();
   }
@@ -199,7 +188,12 @@ class ActivityNotifier extends Notifier<ActivityState> {
 
   void _evaluarUmbrales() {
     final alertas = <Alerta>[];
-    final principalActivo = state.sessionSeconds > kUmbralSessionSeconds;
+    // Sin este chequeo, la alerta se quedaba prendida aunque ya no hubiera
+    // sesión activa: sessionSeconds no vuelve a 0 solo con "Detener" (queda
+    // ahí hasta el siguiente "Iniciar"), así que el umbral seguía cumplido
+    // con el juego en PAUSA/INACTIVO.
+    final jugando = state.activityStatus.startsWith('JUGANDO');
+    final principalActivo = jugando && state.sessionSeconds > kUmbralSessionSeconds;
 
     if (principalActivo) {
       alertas.add(
@@ -228,18 +222,22 @@ class ActivityNotifier extends Notifier<ActivityState> {
   /// principal en la demo sin esperar 30 minutos reales: el wearable sigue
   /// incrementando +1/s, así que cruza los 1800 a los pocos segundos.
   ///
-  /// Guarda el salto como un DESFASE sobre el último valor real recibido
-  /// (no escribe 1795 directo en `state`): el wearable sigue notificando su
-  /// propio contador ~1 vez por segundo pase lo que pase, y si el forzado se
-  /// escribiera directo, el siguiente tick real lo sobrescribiría de
-  /// inmediato (a veces con un valor menor a 1800, cancelando la demo antes
-  /// de que se note). Con el desfase, cada tick real que llega después sigue
-  /// sumando sobre los 1795 en vez de reemplazarlos.
+  /// Ya NO guarda un desfase local (versión anterior): ahora que
+  /// CHAR_SESSION_TIME_OVERRIDE le puede empujar el mismo salto al
+  /// wearable, este vuelve a ser la única fuente de verdad de su propio
+  /// contador — el próximo NOTIFY real que llegue ya viene continuando
+  /// desde 1795 para arriba. Mantener un desfase local ADEMÁS de eso hacía
+  /// que el ajuste se aplicara dos veces (uno del wearable, otro del
+  /// desfase), sumando el doble de tiempo del que correspondía. Aquí solo se
+  /// escribe una vez, de forma optimista, para que el teléfono no espere el
+  /// viaje de ida y vuelta por BLE para reflejar el cambio.
   void debugForzarUmbral() {
-    _offsetSessionSeconds = 1795 - _ultimoSessionSecondsReal;
-    final efectivo = _ultimoSessionSecondsReal + _offsetSessionSeconds;
-    state = state.copyWith(sessionSeconds: efectivo);
+    const forzado = 1795;
+    state = state.copyWith(sessionSeconds: forzado);
     _evaluarUmbrales();
+    // Puramente cosmético: mantiene el reloj del wearable consistente con el
+    // del teléfono durante la demo (el wearable no necesita la alerta en sí).
+    unawaited(ref.read(bleClientProvider).enviarSessionSecondsOverride(forzado));
   }
 }
 

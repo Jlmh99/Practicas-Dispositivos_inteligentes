@@ -41,6 +41,7 @@ class _WatchHomeScreenState extends State<WatchHomeScreen> {
     _periferico = GattPeripheral(
       onComandoControl: _onComandoControl,
       onJuegoSeleccionado: _simulador.setJuego,
+      onSessionSecondsOverride: _simulador.forzarSessionSeconds,
     );
 
     _subPayload = _simulador.stream.listen((payload) {

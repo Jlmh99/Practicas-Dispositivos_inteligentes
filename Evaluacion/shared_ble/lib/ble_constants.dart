@@ -33,6 +33,14 @@ const String kCharControlUuid = '6d696e64-0007-1000-8000-00805f9b34fb';
 /// (`"JUGANDO:<lo último escrito aquí>"`).
 const String kCharGameSelectUuid = '6d696e64-0008-1000-8000-00805f9b34fb';
 
+/// UUID de la característica de forzado de tiempo de sesión (WRITE, uint32
+/// LE, segundos). Solo para el botón "Forzar umbral (demo)" del teléfono: le
+/// permite empujarle al wearable el mismo salto de tiempo que se aplica
+/// localmente en el teléfono, para que los relojes de los tres dispositivos
+/// se vean consistentes en la demo. El wearable sigue incrementando +1/s
+/// desde el valor recibido — no es un valor congelado.
+const String kCharSessionTimeOverrideUuid = '6d696e64-0009-1000-8000-00805f9b34fb';
+
 /// Identifica cada característica del contrato BLE junto con su UUID.
 enum CharacteristicType {
   heartRate(kCharHeartRateUuid),
@@ -41,7 +49,8 @@ enum CharacteristicType {
   focus(kCharFocusUuid),
   status(kCharStatusUuid),
   control(kCharControlUuid),
-  gameSelect(kCharGameSelectUuid);
+  gameSelect(kCharGameSelectUuid),
+  sessionTimeOverride(kCharSessionTimeOverrideUuid);
 
   const CharacteristicType(this.uuid);
 

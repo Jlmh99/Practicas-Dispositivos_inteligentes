@@ -35,7 +35,10 @@ class GamesList extends ConsumerWidget {
             const SizedBox(height: 12),
             ElevatedButton(
               onPressed: () => ref.invalidate(juegosStreamProvider),
-              style: ElevatedButton.styleFrom(backgroundColor: kAzulPrimario),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: kAzulPrimario,
+                foregroundColor: kGrisClaro,
+              ),
               child: const Text('Reintentar'),
             ),
           ],

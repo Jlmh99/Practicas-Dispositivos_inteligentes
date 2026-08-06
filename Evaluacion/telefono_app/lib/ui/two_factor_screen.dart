@@ -195,6 +195,7 @@ class _TwoFactorScreenState extends ConsumerState<TwoFactorScreen> {
                   onPressed: (_verificando || expirado) ? null : _verificar,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: kAzulPrimario,
+                    foregroundColor: kGrisClaro,
                     padding: const EdgeInsets.symmetric(vertical: 14),
                   ),
                   child: _verificando

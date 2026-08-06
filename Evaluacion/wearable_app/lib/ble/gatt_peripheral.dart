@@ -7,13 +7,22 @@ import 'package:shared_ble/shared_ble.dart';
 /// Periférico GATT con guardas de seguridad para evitar crashes en emuladores
 /// o dispositivos sin soporte BLE periférico.
 class GattPeripheral {
-  GattPeripheral({required this.onComandoControl, required this.onJuegoSeleccionado});
+  GattPeripheral({
+    required this.onComandoControl,
+    required this.onJuegoSeleccionado,
+    required this.onSessionSecondsOverride,
+  });
 
   final void Function(bool iniciar) onComandoControl;
 
   /// Llega por CHAR_GAME_SELECT (WRITE) cada vez que el teléfono cambia el
   /// juego elegido — el wearable no tiene otra forma de saberlo.
   final void Function(String juego) onJuegoSeleccionado;
+
+  /// Llega por CHAR_SESSION_TIME_OVERRIDE (WRITE) cuando el teléfono usa el
+  /// botón "Forzar umbral (demo)" — mantiene el reloj del wearable
+  /// consistente con el del teléfono durante esa demo.
+  final void Function(int segundos) onSessionSecondsOverride;
 
   final _centralConectadoController = StreamController<bool>.broadcast();
   final _erroresController = StreamController<String>.broadcast();
@@ -119,6 +128,10 @@ class GattPeripheral {
         value != null) {
       final juego = SensorPayload.decodeGameSelect(value);
       if (juego != null) onJuegoSeleccionado(juego);
+    } else if (characteristicId.toUpperCase() == kCharSessionTimeOverrideUuid.toUpperCase() &&
+        value != null) {
+      final segundos = SensorPayload.decodeSessionSeconds(value);
+      if (segundos != null) onSessionSecondsOverride(segundos);
     }
     return null;
   }
@@ -140,6 +153,11 @@ class GattPeripheral {
         ),
         BleCharacteristic(
           uuid: kCharGameSelectUuid,
+          properties: [CharacteristicProperties.write.index],
+          permissions: [AttributePermissions.writeable.index],
+        ),
+        BleCharacteristic(
+          uuid: kCharSessionTimeOverrideUuid,
           properties: [CharacteristicProperties.write.index],
           permissions: [AttributePermissions.writeable.index],
         ),

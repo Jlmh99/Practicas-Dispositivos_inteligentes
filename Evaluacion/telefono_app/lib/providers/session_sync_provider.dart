@@ -48,7 +48,12 @@ class SessionSyncNotifier extends Notifier<SessionSyncState> {
       moves: actividad.moves,
       focusLevel: actividad.focusLevel,
       activityStatus: actividad.activityStatus,
-      alertaActiva: actividad.sessionSeconds > kUmbralSessionSeconds,
+      // Igual que en activity_provider._evaluarUmbrales(): sessionSeconds no
+      // vuelve a 0 solo con "Detener", así que sin el chequeo de
+      // activityStatus la alerta se quedaba publicada como activa (y por lo
+      // tanto visible en la TV) aunque ya no hubiera sesión en curso.
+      alertaActiva: actividad.activityStatus.startsWith('JUGANDO') &&
+          actividad.sessionSeconds > kUmbralSessionSeconds,
       actualizadoEn: DateTime.now(),
     );
 

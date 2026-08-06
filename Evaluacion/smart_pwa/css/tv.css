@@ -186,11 +186,24 @@ body {
 /* ============================== ALERTA DE SESIÓN ============================== */
 
 /* Banner grande, separado del banner rojo de offline (ese vive fijo en
-   top:0 fuera de la safe zone). Este SÍ respeta la safe zone porque es un
-   hijo flex normal de #safe-zone, no position:fixed — así nunca se sale del
-   margen de 5% aunque el usuario no lo haya notado nunca por estar oculto. */
+   top:0 fuera de la safe zone). Dos intentos anteriores, los dos con un bug
+   real encontrado en vivo:
+     1) Hijo flex normal de #safe-zone: al aparecer le robaba ~110px de
+        alto a .main, justo el margen que necesitaba la card de "Sesión en
+        curso" para no desbordarse.
+     2) position:fixed (overlay): ya no robaba espacio, pero al no
+        reservar ningún lugar en el flujo, se montaba ENCIMA del contenido
+        de abajo en vez de empujarlo — tapaba el título de la card.
+   Solución real: sigue siendo un hijo flex normal (así que .main SIEMPRE
+   tiene el mismo alto disponible, la alerta esté o no activa — nunca
+   cambia el layout), pero se oculta con `visibility:hidden` en vez de
+   `[hidden]`/display:none. `visibility:hidden` sigue ocupando su caja en el
+   flujo (a diferencia de display:none), así que el presupuesto de alto de
+   .main es CONSTANTE sin importar el estado de la alerta — ya no hay forma
+   de que aparecer/desaparecer cambie cuánto le queda a la card de al lado. */
 .alerta-sesion {
   flex-shrink: 0;
+  visibility: hidden;
   background: #e53935;
   color: #f4f6f9;
   text-align: center;
@@ -198,6 +211,10 @@ body {
   border-radius: 8px;
   font-size: 2rem;
   font-weight: 700;
+}
+
+.alerta-sesion.activa {
+  visibility: visible;
 }
 
 /* ============================== HEADER ============================== */
@@ -374,46 +391,55 @@ body {
 }
 
 /* Sesión en curso: mismo lenguaje visual que .stats-panel pero con un borde
-   verde que la distingue como "dato en vivo" vs. el resumen histórico. */
+   verde que la distingue como "dato en vivo" vs. el resumen histórico.
+   Comparte la mitad de .side-panels con .stats-panel (cuando está visible),
+   así que va más compacto: dl en grid de 2 columnas (etiqueta | valor) en
+   vez de las 4 parejas apiladas — con el layout apilado original, el
+   contenido necesitaba más alto del que le toca cuando ambos paneles están
+   visibles y se salía de su propia tarjeta (encontrado probando en vivo). */
 .panel-sesion-vivo {
   flex: 1;
   background: #16162a;
   border: 2px solid #4caf50;
   border-radius: 8px;
-  padding: 32px;
+  padding: 20px 24px;
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: 16px;
+  gap: 10px;
   min-height: 0;
+  overflow: hidden;
 }
 
 .panel-sesion-vivo h2 {
-  font-size: 1.75rem;
+  font-size: 1.25rem;
   color: #f4f6f9;
 }
 
 .sesion-vivo-juego {
-  font-size: 1.25rem;
+  font-size: 1.125rem;
   color: #4caf50;
   font-weight: 600;
 }
 
 .panel-sesion-vivo dl {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  column-gap: 16px;
+  row-gap: 10px;
+  align-items: baseline;
 }
 
 .panel-sesion-vivo dt {
-  font-size: 1.125rem;
+  font-size: 1rem;
   color: #c4c9dc;
 }
 
 .panel-sesion-vivo dd {
-  font-size: 2rem;
+  font-size: 1.5rem; /* detalle — mínimo del layout */
   font-weight: 700;
   color: #f4f6f9;
+  text-align: right;
 }
 
 .stats-panel {

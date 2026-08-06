@@ -5,7 +5,7 @@
 //   en el listener de "fetch" más abajo — hubo una versión anterior que sí
 //   lo cacheaba, pero exponía un riesgo real de cruzar datos entre cuentas).
 
-const CACHE_VERSION = 'mind-games-tv-v8';
+const CACHE_VERSION = 'mind-games-tv-v11';
 
 const APP_SHELL = [
   './',

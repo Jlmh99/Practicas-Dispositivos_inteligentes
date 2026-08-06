@@ -49,6 +49,16 @@ class SensorSimulator {
     _emit();
   }
 
+  /// Salta `sessionSeconds` al valor recibido del teléfono (botón "Forzar
+  /// umbral" de la demo) y sigue sumando +1/s desde ahí — a diferencia del
+  /// desfase que usa `telefono_app` sobre su propio estado, aquí el
+  /// simulador SÍ es la única fuente de verdad de su contador, así que
+  /// asignar directo es correcto y no hay nada que lo pueda "pisar" después.
+  void forzarSessionSeconds(int segundos) {
+    _sessionSeconds = segundos;
+    _emit();
+  }
+
   /// Inicia (o reanuda) la generación de datos cada segundo.
   void start() {
     if (_running) return;

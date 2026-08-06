@@ -119,6 +119,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   onPressed: _irAPrivacidad,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: kAzulPrimario,
+                    foregroundColor: kGrisClaro,
                     padding: const EdgeInsets.symmetric(vertical: 14),
                   ),
                   child: const Text('Continuar'),

@@ -263,12 +263,15 @@ function onCambioSesionEnVivo(datos, fromCache) {
     panelSesionVivoEl.hidden = true;
   }
 
-  alertaSesionEl.hidden = !datos.alertaActiva;
+  // Clase, no [hidden]: la alerta debe seguir reservando su lugar en el
+  // flujo aunque no esté activa, para que el alto de .main (y por lo tanto
+  // el de la card de al lado) nunca cambie según su estado — ver tv.css.
+  alertaSesionEl.classList.toggle('activa', Boolean(datos.alertaActiva));
 }
 
 function ocultarSesionEnVivo() {
   panelSesionVivoEl.hidden = true;
-  alertaSesionEl.hidden = true;
+  alertaSesionEl.classList.remove('activa');
   marcarTarjetaSincronizada(null);
   ultimoActualizadoEnMillis = null;
   actualizarLatencia();

@@ -84,6 +84,7 @@ class HomeScreen extends ConsumerWidget {
       ),
       floatingActionButton: FloatingActionButton.extended(
         backgroundColor: corriendo ? kRojoError : kVerdeExito,
+        foregroundColor: kGrisClaro,
         icon: Icon(corriendo ? Icons.stop : Icons.play_arrow),
         label: Text(corriendo ? 'Detener' : 'Iniciar'),
         onPressed: () => _alternarControl(ref, corriendo),
