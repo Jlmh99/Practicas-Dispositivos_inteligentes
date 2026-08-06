@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!-- Página estática, sin JS: CSP mínima, todo 'self', nada de scripts.
+         style-src necesita 'unsafe-inline' por el <style> de abajo — a
+         diferencia de un script inline, un bloque de estilos no ejecuta
+         código, así que el riesgo real (exfiltración de datos vía CSS en
+         casos muy específicos) es aceptable para una página estática sin
+         inputs de usuario ni datos sensibles en el DOM. -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'none'; style-src 'self' 'unsafe-inline'; object-src 'none'; base-uri 'self'; frame-ancestors 'none';"
+    />
+    <title>Aviso de privacidad — Mind Games</title>
+    <style>
+      /* Paleta de Mind Games (fuente de verdad: CLAUDE.md) — fondo claro
+         aquí a propósito: es un documento para leer, no el dashboard de TV. */
+      body {
+        margin: 0;
+        padding: 32px 16px 64px;
+        background: #f4f6f9;
+        color: #333333;
+        font-family: 'Roboto', Arial, sans-serif;
+        line-height: 1.6;
+      }
+
+      main {
+        max-width: 720px;
+        margin: 0 auto;
+        background: #ffffff;
+        border-radius: 8px;
+        padding: 32px 40px;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+      }
+
+      h1 {
+        color: #3a3aff;
+        font-size: 1.75rem;
+        margin-top: 0;
+      }
+
+      h2 {
+        color: #3a3aff;
+        font-size: 1.125rem;
+        margin-top: 28px;
+        margin-bottom: 6px;
+      }
+
+      p {
+        margin: 0 0 8px;
+      }
+
+      .nota {
+        margin-top: 28px;
+        padding: 16px;
+        border-left: 4px solid #6c7bff;
+        background: #f4f6f9;
+        font-size: 0.9rem;
+      }
+
+      .sensible {
+        border-left-color: #e53935;
+      }
+
+      footer {
+        max-width: 720px;
+        margin: 24px auto 0;
+        font-size: 0.85rem;
+        color: #666;
+        text-align: center;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Aviso de privacidad — Mind Games</h1>
+
+      <h2>Responsable</h2>
+      <p>
+        Mind Games — proyecto académico UTEQ (Juan Luis Mendoza Hernandez,
+        matrícula 2023371106).
+      </p>
+
+      <h2>Datos que recabamos</h2>
+      <p>
+        Nombre, correo electrónico, contraseña (gestionada y cifrada por
+        Firebase Authentication, nunca almacenada por nosotros en texto
+        plano), código de verificación en dos pasos, y datos de tu sesión de
+        juego capturados por el wearable — ritmo cardiaco, tiempo de sesión,
+        movimientos y nivel de concentración.
+      </p>
+
+      <h2>Finalidad</h2>
+      <p>
+        Identificarte dentro de la app, sincronizar tu sesión de juego en
+        tiempo real entre el reloj, el teléfono y esta pantalla, mostrarte tu
+        historial de sesiones, y avisarte si tu tiempo de juego continuo,
+        ritmo cardiaco o nivel de concentración cruzan un umbral de
+        bienestar.
+      </p>
+      <p>
+        Estos datos <strong>no se comparten con terceros</strong> ni se usan
+        con fines comerciales o publicitarios. Es un proyecto académico sin
+        fines de lucro; se procesan mediante la infraestructura de Firebase
+        (Google LLC).
+      </p>
+
+      <h2>Derechos ARCO</h2>
+      <p>
+        Puedes solicitar Acceso, Rectificación, Cancelación u Oposición sobre
+        tus datos personales en cualquier momento, escribiendo al responsable
+        del proyecto. Puedes eliminar tu cuenta y todos tus datos guardados
+        desde la propia app.
+      </p>
+
+      <h2>Retención</h2>
+      <p>
+        Tus datos de sesión se conservan mientras tu cuenta exista. Al
+        eliminar tu cuenta, se eliminan también tus sesiones guardadas y tu
+        estado en vivo.
+      </p>
+
+      <div class="nota sensible">
+        <strong>Dato sensible:</strong> el ritmo cardiaco es un dato de salud
+        conforme a la LFPDPPP y requiere tu consentimiento expreso — al
+        aceptar este aviso en la app, lo otorgas.
+      </div>
+
+      <div class="nota">
+        Esta es la versión corta del aviso. La versión completa (con
+        transferencias internacionales, base legal artículo por artículo y
+        plazos de respuesta ARCO) está en
+        <code>docs/SA4_seguridad.md</code>, sección 4, dentro del repositorio
+        del proyecto.
+      </div>
+    </main>
+    <footer>Mind Games · Ecosistema DDI · 2023371106</footer>
+  </body>
+</html>

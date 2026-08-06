@@ -20,10 +20,15 @@
       CSP lo ignora fuera de una cabecera HTTP real) — se deja declarado
       igual porque no estorba y documenta la intención; si algún día esto
       se sirve con un servidor propio, debe repetirse como cabecera HTTP.
+
+      media-src 'self': la app no usa <video>/<audio> (los fondos de los
+      juegos son <img>, cubiertas por default-src), pero se declara
+      explícita por si en algún momento se agrega un recurso de video sin
+      tener que recordar tocar la CSP.
     -->
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'self' https://apis.google.com; frame-src https://mind-games-ddi.firebaseapp.com; connect-src 'self' https://firestore.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com wss://firestore.googleapis.com; object-src 'none'; base-uri 'self'; frame-ancestors 'none';"
+      content="default-src 'self'; script-src 'self' https://apis.google.com; frame-src https://mind-games-ddi.firebaseapp.com; connect-src 'self' https://firestore.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com wss://firestore.googleapis.com; media-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none';"
     />
     <title>Mind Games TV</title>
     <link rel="manifest" href="./manifest.json" />

@@ -1,20 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'aviso_privacidad_texto.dart';
 import 'colores.dart';
-
-const String _textoAviso = '''
-Responsable: Mind Games — proyecto académico UTEQ (Juan Luis Mendoza Hernandez).
-
-Datos que recabamos: correo electrónico, contraseña (cifrada por Firebase Authentication) y datos de sesión de juego capturados por el wearable (ritmo cardiaco, tiempo de sesión, movimientos, nivel de concentración).
-
-Finalidad: identificarte dentro de la app, sincronizar tu sesión de juego entre el teléfono y la pantalla, y mostrarte tu historial de sesiones.
-
-Estos datos NO se comparten con terceros ni se usan con fines comerciales. Es un proyecto académico sin fines de lucro.
-
-Derechos ARCO: puedes solicitar Acceso, Rectificación, Cancelación u Oposición sobre tus datos personales escribiendo al responsable del proyecto. Puedes eliminar tu cuenta y tus datos en cualquier momento.
-
-Retención: tus datos de sesión se conservan mientras tu cuenta exista. Al eliminar tu cuenta se eliminan también tus sesiones guardadas.
-''';
 
 /// Aviso de privacidad con aceptación obligatoria antes de completar el
 /// registro (LFPDPPP: responsable, datos, finalidad, derechos ARCO).
@@ -61,7 +48,7 @@ class _PrivacyScreenState extends State<PrivacyScreen> {
               Expanded(
                 child: SingleChildScrollView(
                   child: Text(
-                    _textoAviso,
+                    avisoPrivacidadTexto,
                     style: const TextStyle(fontSize: kTextoDetalle, height: 1.4),
                   ),
                 ),

@@ -1,11 +1,17 @@
 // Service Worker de Mind Games TV.
 // - Cache First para el app shell (html/css/js/iconos/media): responde
 //   desde cache al instante, y si no está, va a red y la guarda.
-// - firestore.googleapis.com: SIN intervención del Service Worker (ver nota
-//   en el listener de "fetch" más abajo — hubo una versión anterior que sí
-//   lo cacheaba, pero exponía un riesgo real de cruzar datos entre cuentas).
+// - Network First (con fallback a cache) para firestore.googleapis.com:
+//   intenta la red primero (datos en vivo), y si no hay red, sirve la
+//   última respuesta guardada. Una versión anterior de esto SIN el mensaje
+//   'invalidar-cache-firestore' de abajo tenía un riesgo real de cruzar
+//   datos entre cuentas si la red fallaba justo al cambiar de sesión — se
+//   quitó por completo en esa ronda, y ahora vuelve pero cerrando el hueco
+//   de raíz: app.js manda ese mensaje en CADA transición de
+//   onAuthStateChanged (login Y logout), así que ninguna respuesta cacheada
+//   de una cuenta puede sobrevivir para la siguiente.
 
-const CACHE_VERSION = 'mind-games-tv-v11';
+const CACHE_VERSION = 'mind-games-tv-v12';
 
 const APP_SHELL = [
   './',
@@ -67,25 +73,38 @@ self.addEventListener('fetch', (event) => {
 
   if (event.request.method !== 'GET') return;
 
-  // Firestore: dejarlo pasar sin tocar. Su canal de datos en tiempo real
-  // (WebChannel) hace GET de long-polling contra la MISMA ruta
-  // (".../Listen/channel") para sesiones de CUENTAS distintas — solo cambia
-  // el query string (SID de la conexión). Una versión anterior de este
-  // Service Worker cacheaba estas respuestas por Request (Cache API, que
-  // por defecto compara la URL completa) pensando que así sobrevivía el
-  // modo offline — pero si la red fallaba justo al cambiar de cuenta, existía
-  // el riesgo real de servir una respuesta vieja de OTRA sesión ya
-  // cacheada. Quitado por seguridad: además resultó innecesario, porque el
-  // indicador "sin conexión, mostrando últimos datos" ya funciona solo con
-  // el comportamiento nativo del SDK — cada `onSnapshot` activo se queda
-  // pintando su último valor en memoria aunque la red se caiga, sin que el
-  // Service Worker tenga que guardar ni servir nada.
-  if (url.hostname === 'firestore.googleapis.com') return;
+  // Datos en vivo de Firestore: red primero, cache como respaldo offline.
+  // Seguro porque app.js purga esta parte de la caché en cada cambio de
+  // sesión (ver el listener de 'message' más abajo) — nunca sobrevive una
+  // respuesta de la cuenta anterior para la siguiente.
+  if (url.hostname === 'firestore.googleapis.com') {
+    event.respondWith(networkFirst(event.request));
+    return;
+  }
 
   // Todo lo demás que sea de nuestro propio origen: cache primero.
   if (url.origin === self.location.origin) {
     event.respondWith(cacheFirst(event.request));
   }
+});
+
+// app.js manda esto en CADA transición de onAuthStateChanged (login y
+// logout), antes de suscribir los listeners de la cuenta nueva — así
+// ninguna respuesta de Firestore cacheada de la cuenta anterior puede
+// quedar disponible para que networkFirst() la sirva por error si la red
+// falla justo después de cambiar de sesión.
+self.addEventListener('message', (event) => {
+  if (!event.data || event.data.tipo !== 'invalidar-cache-firestore') return;
+  event.waitUntil(
+    caches.open(CACHE_VERSION).then(async (cache) => {
+      const requests = await cache.keys();
+      await Promise.all(
+        requests
+          .filter((req) => new URL(req.url).hostname === 'firestore.googleapis.com')
+          .map((req) => cache.delete(req)),
+      );
+    }),
+  );
 });
 
 async function cacheFirst(request) {
@@ -98,4 +117,19 @@ async function cacheFirst(request) {
     cache.put(request, respuesta.clone());
   }
   return respuesta;
+}
+
+async function networkFirst(request) {
+  try {
+    const respuesta = await fetch(request);
+    if (respuesta.ok) {
+      const cache = await caches.open(CACHE_VERSION);
+      cache.put(request, respuesta.clone());
+    }
+    return respuesta;
+  } catch (error) {
+    const cacheado = await caches.match(request);
+    if (cacheado) return cacheado;
+    throw error;
+  }
 }
