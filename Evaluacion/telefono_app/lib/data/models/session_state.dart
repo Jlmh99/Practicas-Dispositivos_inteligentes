@@ -47,7 +47,17 @@ class SessionState {
         'focusLevel': focusLevel,
         'activityStatus': activityStatus,
         'alertaActiva': alertaActiva,
-        'actualizadoEn': Timestamp.fromDate(actualizadoEn),
+        // FieldValue.serverTimestamp(), NO Timestamp.fromDate(actualizadoEn):
+        // la TV resta su propio Date.now() contra este valor para medir la
+        // latencia de sync (js/app.js, actualizarLatencia()). Con el reloj
+        // del teléfono (DateTime.now()) esa resta incluye el drift entre el
+        // reloj del emulador del teléfono y el de la TV — encontrado en vivo
+        // (~40s de diferencia de hardware, nada que ver con latencia real de
+        // red). serverTimestamp() lo pone el propio servidor de Firestore al
+        // confirmar la escritura: mismo reloj autoritativo para cualquier
+        // dispositivo que lea, sin importar qué tan desincronizado esté el
+        // reloj de quien escribió.
+        'actualizadoEn': FieldValue.serverTimestamp(),
       };
 
   /// Compara los campos que importan para el debounce del sync — ignora

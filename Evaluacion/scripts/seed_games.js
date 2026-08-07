@@ -29,7 +29,13 @@ const games = [
   { id: 'crucigrama',  nombre: 'Crucigrama',      dificultad: 'Media',   jugadas: 96,  tiempoPromedioSeg: 530, estado: 'disponible'   },
   { id: 'sopa-letras', nombre: 'Sopa de Letras',  dificultad: 'Fácil',   jugadas: 74,  tiempoPromedioSeg: 210, estado: 'disponible'   },
   { id: 'memorama',    nombre: 'Memorama',        dificultad: 'Fácil',   jugadas: 141, tiempoPromedioSeg: 180, estado: 'disponible'   },
-  { id: 'ahorcado',    nombre: 'Ahorcado',        dificultad: 'Media',   jugadas: 55,  tiempoPromedioSeg: 240, estado: 'disponible'   },
+  // 'proximamente': con orden 5 de 6, nunca aparece en el grid 2x2 de la TV
+  // (solo muestra los primeros 4) — pero SÍ aparecía como seleccionable en
+  // el teléfono, dejando elegir un juego que la TV nunca mostraría. Marcado
+  // así queda consistente en ambos: no seleccionable en el teléfono
+  // (`GamesList` filtra por `disponible`), y con el badge "Próximamente" si
+  // alguna vez se muestra.
+  { id: 'ahorcado',    nombre: 'Ahorcado',        dificultad: 'Media',   jugadas: 55,  tiempoPromedioSeg: 240, estado: 'proximamente' },
   { id: 'hanoi',       nombre: 'Torres de Hanói', dificultad: 'Difícil', jugadas: 20,  tiempoPromedioSeg: 600, estado: 'proximamente' },
 ];
 

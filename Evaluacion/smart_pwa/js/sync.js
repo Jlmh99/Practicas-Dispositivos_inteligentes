@@ -5,6 +5,16 @@
 import { db, doc, onSnapshot } from './firebase-init.js';
 
 const REINTENTO_MS = 3000;
+const VIGIA_INTERVALO_MS = 4000;
+// Si pasa más de esto SIN NINGÚN evento (ni de metadata) MIENTRAS debería
+// haber una sesión activa escribiendo cada ~2s, se asume colgado y se
+// fuerza una reconexión — visto en vivo bajo carga de los 3 dispositivos:
+// el indicador de latencia se quedaba subiendo sin límite, sin disparar el
+// callback de error ni el aviso de "Reconectando" (onSnapshot no siempre
+// nota su propio cuelgue bajo presión de CPU). 15s da margen de sobra para
+// que una reconexión genuinamente lenta bajo carga (~2-5s típico) no se
+// confunda con un cuelgue real y dispare reconexiones de más.
+const VIGIA_UMBRAL_MS = 15000;
 
 /**
  * @param {string} uid
@@ -27,15 +37,29 @@ export function escucharSesionEnVivo(uid, { onCambio, onSinSesion, onError }) {
   let cancelado = false;
   let unsubscribe = null;
   let timeoutReintento = null;
+  let vigiaIntervalo = null;
+  let ultimoEventoMillis = Date.now();
+  // Gatea el vigía: si la ÚLTIMA sesión conocida no estaba "JUGANDO", el
+  // teléfono legítimamente puede no escribir nada por rato (debounce en
+  // session_sync_provider.dart — no escribe si nada cambió), y eso NO es un
+  // cuelgue. Sin este gate, el vigía dispararía reconexiones de más cada
+  // vez que el usuario esté inactivo, no solo cuando de verdad esté colgado.
+  let sesionActivaConocida = false;
 
   function suscribir() {
+    ultimoEventoMillis = Date.now();
     unsubscribe = onSnapshot(
       ref,
       { includeMetadataChanges: true },
       (snapshot) => {
+        ultimoEventoMillis = Date.now();
         if (snapshot.exists()) {
-          onCambio(snapshot.data(), snapshot.metadata.fromCache);
+          const datos = snapshot.data();
+          sesionActivaConocida =
+            typeof datos.activityStatus === 'string' && datos.activityStatus.startsWith('JUGANDO');
+          onCambio(datos, snapshot.metadata.fromCache);
         } else if (onSinSesion) {
+          sesionActivaConocida = false;
           onSinSesion();
         }
       },
@@ -55,9 +79,27 @@ export function escucharSesionEnVivo(uid, { onCambio, onSinSesion, onError }) {
 
   suscribir();
 
+  // Vigía: onSnapshot no siempre nota su propio cuelgue (visto en vivo bajo
+  // carga de los 3 dispositivos — el indicador de latencia se quedaba
+  // subiendo sin límite, sin error ni "Reconectando"). Si pasan
+  // VIGIA_UMBRAL_MS sin NINGÚN evento (ni siquiera uno de metadata), se
+  // fuerza una resuscripción desde cero.
+  vigiaIntervalo = setInterval(() => {
+    if (cancelado || !sesionActivaConocida) return;
+    if (Date.now() - ultimoEventoMillis > VIGIA_UMBRAL_MS) {
+      console.warn(
+        `[sync] Sin eventos de Firestore en ${VIGIA_UMBRAL_MS}ms — forzando reconexión.`,
+      );
+      if (onError) onError(true);
+      if (unsubscribe) unsubscribe();
+      suscribir();
+    }
+  }, VIGIA_INTERVALO_MS);
+
   return () => {
     cancelado = true;
     if (timeoutReintento) clearTimeout(timeoutReintento);
+    if (vigiaIntervalo) clearInterval(vigiaIntervalo);
     if (unsubscribe) unsubscribe();
   };
 }

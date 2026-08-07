@@ -20,11 +20,17 @@ class SensorSimulator {
 
   String _juego = 'SUDOKU';
 
+  // Arrancan en 0, NO en el valor base de reposo (70): antes de la primera
+  // sesión (o entre reset() e Iniciar) no hay ninguna lectura real todavía,
+  // así que mostrar 70 bpm/70% de una vez sería un dato inventado — se
+  // notaba en vivo al elegir un juego sin haber presionado Iniciar (setJuego
+  // ya emite de inmediato). reset() los sube a 70 justo al empezar sesión de
+  // verdad (más abajo), que es donde ese valor base sí tiene sentido.
   int _sessionSeconds = 0;
   int _moves = 0;
-  double _focusLevel = 70;
+  double _focusLevel = 0;
   double _focusVelocity = 0;
-  double _heartRate = 70;
+  double _heartRate = 0;
   int _lastMoveSessionSecond = 0;
 
   final _controller = StreamController<SensorPayload>.broadcast();
@@ -33,8 +39,12 @@ class SensorSimulator {
   Stream<SensorPayload> get stream => _controller.stream;
 
   /// Último payload calculado, útil para pintar la UI antes del primer tick.
+  /// Sin el clamp inferior de 60 en heartRate: _tick() ya mantiene el valor
+  /// dentro de 60-130 mientras corre, así que el único momento en que este
+  /// getter ve algo fuera de ese rango es el 0 real antes de iniciar — y ahí
+  /// es exactamente cuando NO se quiere que se vea forzado a 60.
   SensorPayload get ultimo => SensorPayload(
-        heartRate: _heartRate.round().clamp(60, 130),
+        heartRate: _heartRate.round(),
         sessionSeconds: _sessionSeconds,
         moves: _moves,
         focusLevel: _focusLevel.clamp(0, 100),

@@ -303,7 +303,18 @@ body {
 .game-card {
   position: relative;
   border-radius: 8px;
-  background: #16162a;
+  /* Semi-transparente + blur ("frosted glass") en vez de sólida: deja que
+     el fondo multimedia (.media-background, detrás en z-index) se asome
+     tras la tarjeta, en vez de taparlo por completo. El overlay oscuro de
+     .media-background::after ya deja el fondo bastante oscuro, así que el
+     contraste WCAG AA verificado para el texto se mantiene en la práctica
+     incluso en 64% opaco, aunque ya no es una garantía matemática exacta
+     como con el fondo sólido (depende de qué imagen esté detrás). Fallback:
+     sin backdrop-filter el navegador simplemente muestra el 64% opaco sin
+     blur, sigue siendo legible. */
+  background: rgba(22, 22, 42, 0.64);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
   padding: 32px;
   display: flex;
   flex-direction: column;

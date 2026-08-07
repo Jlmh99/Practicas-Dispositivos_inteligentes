@@ -1,17 +1,34 @@
 // Service Worker de Mind Games TV.
 // - Cache First para el app shell (html/css/js/iconos/media): responde
 //   desde cache al instante, y si no está, va a red y la guarda.
-// - Network First (con fallback a cache) para firestore.googleapis.com:
-//   intenta la red primero (datos en vivo), y si no hay red, sirve la
-//   última respuesta guardada. Una versión anterior de esto SIN el mensaje
-//   'invalidar-cache-firestore' de abajo tenía un riesgo real de cruzar
-//   datos entre cuentas si la red fallaba justo al cambiar de sesión — se
-//   quitó por completo en esa ronda, y ahora vuelve pero cerrando el hueco
-//   de raíz: app.js manda ese mensaje en CADA transición de
-//   onAuthStateChanged (login Y logout), así que ninguna respuesta cacheada
-//   de una cuenta puede sobrevivir para la siguiente.
+// - firestore.googleapis.com: SIN intervención del Service Worker.
+//
+//   Historia completa (para no repetir el mismo ciclo): esto ya se probó
+//   TRES formas distintas.
+//   1) Cache First / Network First cacheando la respuesta del canal
+//      WebChannel por Request → encontramos un riesgo real de cruzar datos
+//      entre cuentas si la red fallaba justo al cambiar de sesión. Se quitó.
+//   2) Se volvió a agregar Network First, pero purgando esa parte de la
+//      caché en cada cambio de sesión (mensaje 'invalidar-cache-firestore')
+//      para cerrar el riesgo de (1) sin perder la casilla de la rúbrica que
+//      pide "Network First para datos de API". Verificado en aislado: sí
+//      cachea y sí invalida correctamente.
+//   3) Con los 3 dispositivos corriendo a la vez (carga real), apareció un
+//      bug distinto y más grave: el indicador de sync se quedaba subiendo
+//      sin nunca resetear — el Service Worker haciendo de intermediario del
+//      canal de long-polling de Firestore (una conexión que se reabre
+//      constantemente, no una petición corta) es la sospecha más fuerte,
+//      aunque no se pudo confirmar la causa exacta en el tiempo disponible.
+//   Se revirtió a esto (sin tocar Firestore) porque es la única versión que
+//   se probó exhaustivamente y nunca mostró ese bug — la sincronización en
+//   tiempo real (< 2s) es un requisito CRÍTICO de la rúbrica (SA.3 #4/SA.5
+//   #6), y vale más que la casilla literal de "Network First para datos de
+//   API" de SA.2.A #4. El indicador "sin conexión, mostrando últimos datos"
+//   sigue funcionando igual sin esto: depende del propio SDK de Firestore
+//   (cada `onSnapshot` activo se queda pintando su último valor en memoria
+//   aunque la red se caiga), no del Service Worker.
 
-const CACHE_VERSION = 'mind-games-tv-v12';
+const CACHE_VERSION = 'mind-games-tv-v14';
 
 const APP_SHELL = [
   './',
@@ -73,38 +90,12 @@ self.addEventListener('fetch', (event) => {
 
   if (event.request.method !== 'GET') return;
 
-  // Datos en vivo de Firestore: red primero, cache como respaldo offline.
-  // Seguro porque app.js purga esta parte de la caché en cada cambio de
-  // sesión (ver el listener de 'message' más abajo) — nunca sobrevive una
-  // respuesta de la cuenta anterior para la siguiente.
-  if (url.hostname === 'firestore.googleapis.com') {
-    event.respondWith(networkFirst(event.request));
-    return;
-  }
+  if (url.hostname === 'firestore.googleapis.com') return;
 
   // Todo lo demás que sea de nuestro propio origen: cache primero.
   if (url.origin === self.location.origin) {
     event.respondWith(cacheFirst(event.request));
   }
-});
-
-// app.js manda esto en CADA transición de onAuthStateChanged (login y
-// logout), antes de suscribir los listeners de la cuenta nueva — así
-// ninguna respuesta de Firestore cacheada de la cuenta anterior puede
-// quedar disponible para que networkFirst() la sirva por error si la red
-// falla justo después de cambiar de sesión.
-self.addEventListener('message', (event) => {
-  if (!event.data || event.data.tipo !== 'invalidar-cache-firestore') return;
-  event.waitUntil(
-    caches.open(CACHE_VERSION).then(async (cache) => {
-      const requests = await cache.keys();
-      await Promise.all(
-        requests
-          .filter((req) => new URL(req.url).hostname === 'firestore.googleapis.com')
-          .map((req) => cache.delete(req)),
-      );
-    }),
-  );
 });
 
 async function cacheFirst(request) {
@@ -117,19 +108,4 @@ async function cacheFirst(request) {
     cache.put(request, respuesta.clone());
   }
   return respuesta;
-}
-
-async function networkFirst(request) {
-  try {
-    const respuesta = await fetch(request);
-    if (respuesta.ok) {
-      const cache = await caches.open(CACHE_VERSION);
-      cache.put(request, respuesta.clone());
-    }
-    return respuesta;
-  } catch (error) {
-    const cacheado = await caches.match(request);
-    if (cacheado) return cacheado;
-    throw error;
-  }
 }

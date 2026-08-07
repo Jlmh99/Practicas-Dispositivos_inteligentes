@@ -10,6 +10,12 @@ import '../main.dart' show kFondoOscuro, kAzulPrimario;
 const Color kVerdeExito = Color(0xFF4CAF50);
 const Color kRojoError = Color(0xFFE53935);
 
+// Mismo umbral que `kUmbralSessionSeconds` en
+// telefono_app/lib/providers/activity_provider.dart (fuente de verdad:
+// CLAUDE.md). No vive en shared_ble porque ese paquete es solo para UUIDs y
+// formato de bytes, no para umbrales de negocio — pero es el mismo número.
+const int _kUmbralSessionSeconds = 1800;
+
 /// Pantalla principal del wearable, diseñada para una esfera redonda de
 /// 384×384. Todo el contenido vive dentro de un lienzo cuadrado de ese mismo
 /// tamaño que se escala con [FittedBox], así que nunca hay scroll ni overflow
@@ -156,7 +162,11 @@ class _WatchHomeScreenState extends State<WatchHomeScreen> {
           child: _IndicadorConexion(conectado: _conectado, error: _error),
         ),
 
-        // Métrica principal: tiempo de sesión, al centro.
+        // Métrica principal: tiempo de sesión, al centro. Alerta pequeña:
+        // se pinta de rojo al cruzar el umbral (mismo criterio que el
+        // banner del teléfono y de la TV) — no hay espacio para un banner
+        // completo en una esfera de 384px, así que este es el aviso visual
+        // más chico posible sin agregar layout nuevo.
         Align(
           alignment: const Alignment(0, -0.05),
           child: Column(
@@ -168,8 +178,10 @@ class _WatchHomeScreenState extends State<WatchHomeScreen> {
               ),
               Text(
                 _mmss(_payload.sessionSeconds),
-                style: const TextStyle(
-                  color: Colors.white,
+                style: TextStyle(
+                  color: _payload.sessionSeconds > _kUmbralSessionSeconds
+                      ? kRojoError
+                      : Colors.white,
                   fontSize: 44,
                   fontWeight: FontWeight.bold,
                   height: 1.1,

@@ -86,19 +86,7 @@ function traducirErrorAuth(code) {
   }
 }
 
-// Purga la parte de la caché del SW que corresponde a Firestore (ver
-// sw.js) antes de que se suscriba ningún listener de la cuenta que sea —
-// así ninguna respuesta cacheada de una cuenta anterior puede quedar
-// disponible para networkFirst() si la red falla justo tras el cambio.
-function invalidarCacheFirestore() {
-  if (navigator.serviceWorker.controller) {
-    navigator.serviceWorker.controller.postMessage({ tipo: 'invalidar-cache-firestore' });
-  }
-}
-
 onAuthStateChanged(auth, (usuario) => {
-  invalidarCacheFirestore();
-
   if (usuario) {
     loginScreen.hidden = true;
     dashboard.hidden = false;
