@@ -137,10 +137,6 @@ pflannery.vscode-versionlens    — versiones de paquetes inline en pubspec.yaml
 ms-ceintl.vscode-language-pack-es — interfaz en español
 ```
 
-`[LISTADO COMPLETO DE code --list-extensions — PEGAR AQUÍ SI SE QUIERE]` (el
-resto son de otros proyectos en la misma máquina — Java/Spring/PHP — sin
-relación con Mind Games).
-
 ### Dependencias — versión exacta resuelta (`pubspec.lock`, no solo el rango de `pubspec.yaml`)
 
 **`telefono_app/pubspec.lock`:**
@@ -374,10 +370,6 @@ verdad de su propio contador.
 
 ### Cómo se logró el enlace BLE real (periférico ↔ central)
 
-`[PEGAR AQUÍ: descripción de qué dispositivos usaste (dos emuladores, un
-emulador + hardware físico, o dos dispositivos físicos), qué tuviste que
-ajustar en cada uno — permisos de Bluetooth otorgados manualmente, distancia
-física si usaste hardware real, versión de Android en cada uno, cualquier
-diálogo de pairing que haya aparecido, etc. Este es el punto que el evaluador
-va a querer ver documentado con más detalle porque es la parte más "física"
-de todo el proyecto.]`
+Aqui todo fueron emuladores los emuladores recientes de android ya pueden simular conexion bluethoot entre ellos
+ademas con las librerias correctas como permission_handler: ^11.3.1, ble_peripheral: ^2.4.0 se puede lograr que
+se envien informacion solo hay que programar  que uno sea el periferico que envia datos y el otro que recibe.
